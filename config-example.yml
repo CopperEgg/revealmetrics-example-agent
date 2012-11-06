@@ -1,0 +1,48 @@
+copperegg:
+  apikey: [your api key here]
+  frequency: 60
+  services:
+  - redis
+  - mysql
+  - apache
+  - nginx
+redis:
+  group_name: "redis"
+  group_label: "Redis Metrics"
+  dashboard: "Redis Dashboard"
+  servers:
+  -
+    name: "server01"
+    hostname: "localhost"
+    port: 6379
+  -
+    name: "server02"
+    hostname: "localhost2"
+    port: 6379
+mysql:
+  group_name: "mysql"
+  group_label: "MySQL Metrics"
+  dashboard: "MySQL Dashboard"
+  servers:
+  -
+    name: "main_mysql_server"
+    hostname: "localhost"
+    username: "root"
+    password: "pw"
+    database: "mysql"
+apache:
+  group_name: "apache-001"
+  group_label: "Apache Metrics"
+  dashboard: "Apache Dashboard"
+  servers:
+  -
+    name: "apache"
+    url: "http://www.apache.org"
+nginx:
+  group_name: "nginx-b-5"
+  group_label: "Nginx Metrics"
+  dashboard: "Nginx Dashboard"
+  servers:
+  -
+    name: "localginx"
+    url: "http://app.example.net"
