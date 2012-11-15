@@ -895,13 +895,13 @@ end
       create_dashboard(service, apikey)
     end
 
-    redis_pid = fork {
+    child_pid = fork {
       trap("INT") { child_interrupt if !@interrupted }
       trap("TERM") { child_interrupt if !@interrupted }
 
       monitor_service(service, apikey)
     }
-    @worker_pids.push redis_pid
+    @worker_pids.push child_pid
   end
 end
 
