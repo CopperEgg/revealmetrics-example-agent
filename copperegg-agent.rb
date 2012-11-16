@@ -119,11 +119,11 @@ end
 ####################################################################
 
 def connect_to_redis(uri, attempts=10)
-  host, port = uri.split(':')
+  splituri = URI.parse(uri)
   connect_try_count = 0
   redis = nil
   begin
-    redis = Redis.new(:host=>host, :port=>port)
+    redis = Redis.new(:host => splituri.host, :port => splituri.port, :password => splituri.password)
   rescue Exception => e
     connect_try_count += 1
     if connect_try_count > attempts
@@ -149,12 +149,17 @@ def monitor_redis(redis_servers, group_name, apikey)
     redis_servers.each do |rhost|
       return if @interrupted
 
-      #label, rhostname, rport = rhost.split(':')
       label = rhost["name"]
       rhostname = rhost["hostname"]
       rport = rhost["port"]
+      rpass = rhost["password"]
 
-      redis_uri = "#{rhostname}:#{rport}"
+      if rpass.nil?
+        redis_uri = "#{rhostname}:#{rport}"
+      else
+        redis_uri = "redis://redis:#{rpass}@#{rhostname}:#{rport}"
+      end
+
       begin
         redis = connect_to_redis(redis_uri)
         rinfo = redis.info()

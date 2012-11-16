@@ -19,6 +19,11 @@ redis:
     name: "server02"
     hostname: "localhost2"
     port: 6379
+  -
+    name: "RedisToGo"
+    hostname: "domain.redistogo.com"
+    port: 9060
+    password: 9873fa7c5b89asdefba0sdfsea773ca74sdf
 mysql:
   group_name: "mysql"
   group_label: "MySQL Metrics"
