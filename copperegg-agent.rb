@@ -3,6 +3,7 @@
 # Copyright 2012 CopperEgg Corporation.  All rights reserved.
 #
 
+require 'rubygems'
 require 'getoptlong'
 require 'copperegg'
 require 'json'
@@ -164,7 +165,7 @@ def monitor_redis(redis_servers, group_name, apikey)
         redis = connect_to_redis(redis_uri)
         rinfo = redis.info()
       rescue Exception => e
-        puts "Error getting stats from: #{rhost} [skipping]"
+        puts "Error getting stats from: #{label} [skipping]"
         next
       end
 
