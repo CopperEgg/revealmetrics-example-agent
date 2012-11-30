@@ -22,7 +22,7 @@ you will need to replace "1.9.3" with "1.9.1".
 
 If you need to monitor mysql, run this as well:
 
-    sudy apt-get -y install ruby1.9.3-dev libmysqld-dev build-essential
+    sudo apt-get -y install ruby1.9.3-dev libmysqld-dev build-essential
 
 On RedHat/Fedora/CentOS/Amazon Linux, run:
 
