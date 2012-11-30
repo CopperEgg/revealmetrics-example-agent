@@ -1,7 +1,7 @@
 source 'http://rubygems.org'
 
 gem 'copperegg'
-gem 'json'
+gem 'json_pure'
 
 group :redis do
   gem 'redis'

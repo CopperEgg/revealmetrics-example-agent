@@ -6,7 +6,7 @@
 require 'rubygems'
 require 'getoptlong'
 require 'copperegg'
-require 'json'
+require 'json/pure'
 require 'yaml'
 
 ####################################################################
