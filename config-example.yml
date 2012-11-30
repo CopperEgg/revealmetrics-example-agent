@@ -1,5 +1,5 @@
 copperegg:
-  apikey: [your api key here]
+  apikey: "YOUR_APIKEY"
   frequency: 60
   services:
   - redis
