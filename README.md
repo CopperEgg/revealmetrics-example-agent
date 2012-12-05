@@ -12,37 +12,36 @@ If you have a CopperEgg account, you may log in and use RevealMetrics at <https:
 
 ##1. Install dependencies ruby and mysql-dev
 
-On newer Debian/Ububntu, run:
+This has been tested with both ruby 1.8.7 and 1.9.3.  We recommend 1.9.3+ if it's easy,
+but many operating systems still default to 1.8.7, so we'll use that here.
 
-    sudo apt-get -y install ruby1.9.3 rubygems libopenssl-ruby1.9.3 unzip
+On newer Debian/Ubuntu, run:
 
-Older versions such as Ubuntu 10.04 may need to use "ruby1.9.1" instead of "ruby1.9.3",
-or "rubygems1.9.1" instead of "rubygems".  In the instructions below,
-you will need to replace "1.9.3" with "1.9.1".
+    sudo apt-get -y install ruby rubygems libopenssl-ruby unzip
 
 If you need to monitor mysql, run this as well:
 
-    sudo apt-get -y install ruby1.9.3-dev libmysqld-dev build-essential
+    sudo apt-get -y install ruby-dev libmysqld-dev build-essential
 
 On RedHat/Fedora/CentOS/Amazon Linux, run:
 
-    sudo yum install -y ruby19 rubygems mysql-devel
-
-and in the instructions below, replace "ruby1.9.3" with "ruby19" and "gem1.9.3" with "gem19".
-
-Note that the agent should work properly with ruby 1.8.x, but 1.9.x is recommended and tested.
+    sudo yum install -y ruby rubygems mysql-devel
 
 
 ##2. Download and configure the agent
 
-Download the [revealmetrics-example-agent.zip](https://github.com/CopperEgg/revealmetrics-example-agent/archive/master.zip)
+Download the [revealmetrics-example-agent.zip](https://github.com/CopperEgg/revealmetrics-example-agent/archive/master.tar.gz)
 file \([hosted at github](https://github.com/CopperEgg/revealmetrics-example-agent)\) on a Linux or Mac OSX system:
 
-    cd ~; wget https://github.com/CopperEgg/revealmetrics-example-agent/archive/master.zip
+    cd ~; wget https://github.com/CopperEgg/revealmetrics-example-agent/archive/master.tar.gz
+
+If needed, rename the downloaded file to have the correct extension:
+
+    mv -f master master.tar.gz
 
 Unzip the archive and enter the directory:
 
-    unzip master.zip; cd revealmetrics-example-agent-master
+    tar -xvzf master.tar.gz; cd revealmetrics-example-agent-master
 
 Copy the example config into config.yml, and edit with your favorite editor:
 
@@ -57,29 +56,29 @@ Be sure to keep the same spacing supplied in the original file.
 
 Ensure that the ruby gems are installed.  Do not use the "--without=mysql" flag if you want to monitor mysql:
 
-    gem1.9.3 install bundler; bundle install --without=mysql
+    gem install bundler; bundle install --without=mysql
 
 If installing bundler fails with the error "bundler requires RubyGems version >= 1.3.6",
 try running this command and then rerunning the bundle command above:
 
-    gem1.9.1 install rubygems-update; sudo /var/lib/gems/1.9.1/bin/update_rubygems
+    gem install rubygems-update; sudo /var/lib/gems/1.*/bin/update_rubygems
 
-If the bundle command still fails, run this \(and omit "redis" or "mysql2" if desired\):
+If the bundle command still fails, run this \(and omit "redis" and/or "mysql2" if desired\):
 
-    gem1.9.3 install json_pure copperegg redis mysql2
+    gem install json_pure copperegg redis mysql2
 
 
 ##4. Run the agent
 
 Run the agent in a terminal:
 
-    ruby1.9.3 ./copperegg-agent.rb
+    ruby ./copperegg-agent.rb
 
 You should see some output saying that dashboards are created, and services are being monitored.
 
 To run the process in the background, you may use:
 
-    nohup ruby1.9.3 ./copperegg-agent.rb >/tmp/copperegg-agent.log 2>&1 &
+    nohup ruby ./copperegg-agent.rb >/tmp/copperegg-agent.log 2>&1 &
 
 And it will run in the background, and log to /tmp/copperegg-agent.log
 
