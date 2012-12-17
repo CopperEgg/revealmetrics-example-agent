@@ -354,7 +354,7 @@ def monitor_mysql(mysql_servers, group_name, apikey)
 
       begin
         mysql = connect_to_mysql(mhost["hostname"], mhost["username"], mhost["password"], mhost["database"])
-        mstats = mysql.query('SHOW STATUS;')
+        mstats = mysql.query('SHOW GLOBAL STATUS;')
 
       rescue Exception => e
         puts "Error getting stats from: #{mhost['hostname']} [skipping]"
