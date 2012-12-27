@@ -156,7 +156,7 @@ def monitor_redis(redis_servers, group_name, apikey)
       rpass = rhost["password"]
 
       if rpass.nil?
-        redis_uri = "#{rhostname}:#{rport}"
+        redis_uri = "redis://#{rhostname}:#{rport}"
       else
         redis_uri = "redis://redis:#{rpass}@#{rhostname}:#{rport}"
       end
