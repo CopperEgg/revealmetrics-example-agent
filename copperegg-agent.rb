@@ -580,21 +580,20 @@ end
   if @config[service] && @config[service]["servers"].length > 0
     begin
       puts "Checking for existence of metric group for #{service}"
-      metric_group = CopperEgg::MetricGroup.find(@config[service]["group_name"]) || create_metric_group(@config[service]["group_name"])
+      metric_group = CopperEgg::MetricGroup.find(@config[service]["group_name"]) || create_metric_group(service)
 
       puts "Checking for existence of #{service} Dashboard"
       CopperEgg::CustomDashboard.find_by_name(@config[service]["dashboard"]) || create_dashboard(service, metric_group)
-
-      child_pid = fork {
-        trap("INT") { child_interrupt if !@interrupted }
-        trap("TERM") { child_interrupt if !@interrupted }
-
-        monitor_service(service, metric_group)
-      }
-      @worker_pids.push child_pid
     rescue => e
       puts e.message
     end
+    child_pid = fork {
+      trap("INT") { child_interrupt if !@interrupted }
+      trap("TERM") { child_interrupt if !@interrupted }
+
+      monitor_service(service, metric_group)
+    }
+    @worker_pids.push child_pid
   end
 end
 
