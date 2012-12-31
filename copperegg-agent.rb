@@ -243,11 +243,11 @@ def create_redis_metric_group(group_name, group_label)
   metric_group
 end
 
-def create_redis_dashboard(metric_group, dashboard, server_list)
+def create_redis_dashboard(metric_group, name, server_list)
   puts "Creating new Redis Dashboard"
   servers = server_list.map { |server_entry| server_entry["name"] }
   metrics = %w(keys total_connections_received connected_clients used_memory total_commands_processed)
-  CopperEgg::CustomDashboard.create!(metric_group, :name => dashboard, :identifiers => servers, :metrics => metrics)
+  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
 
 ####################################################################
@@ -355,9 +355,9 @@ def create_mysql_metric_group(group_name, group_label)
   metric_group.metrics << {:type => "ce_gauge",   :name => "Max_used_connections",         :unit => "Connections"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "Open_tables",                  :unit => "Tables"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "Open_files",                   :unit => "Files"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Select_full_join"},
+  metric_group.metrics << {:type => "ce_counter", :name => "Select_full_join"}
   metric_group.metrics << {:type => "ce_counter", :name => "Uptime",                       :unit => "Seconds"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "Table_locks_immediate"},
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Table_locks_immediate"}
   metric_group.metrics << {:type => "ce_counter", :name => "Bytes_received",               :unit => "Bytes"}
   metric_group.metrics << {:type => "ce_counter", :name => "Bytes_sent",                   :unit => "Bytes"}
   metric_group.metrics << {:type => "ce_counter", :name => "Com_alter_db",                 :unit => "Commands"}
@@ -373,11 +373,11 @@ def create_mysql_metric_group(group_name, group_label)
   metric_group
 end
 
-def create_mysql_dashboard(metric_group, dashboard, server_list)
+def create_mysql_dashboard(metric_group, name, server_list)
   puts "Creating new MySQL/RDS Dashboard"
-  servers = server_list.map {|server_enttry| server_entry["name"]}
+  servers = server_list.map {|server_entry| server_entry["name"]}
   metrics = %w(Queries Slow_queries Open_tables Bytes_received Bytes_sent)
-  CopperEgg::CustomDashboard.create!(metric_group, :name => dashboard, :identifiers => servers, :metrics => metrics)
+  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
 
 ####################################################################
@@ -455,11 +455,11 @@ def create_apache_metric_group(group_name, group_label)
   metric_group
 end
 
-def create_apache_dashboard(metric_group, dashboard, server_list)
+def create_apache_dashboard(metric_group, name, server_list)
   puts "Creating new Apache Dashboard"
-  servers = server_list.map {|server_enttry| server_entry["name"]}
+  servers = server_list.map {|server_entry| server_entry["name"]}
   metrics = %w(total_accesses request_per_sec busy_workers connections_total idle_workers)
-  CopperEgg::CustomDashboard.create!(metric_group, :name => dashboard, :identifiers => servers, :metrics => metrics)
+  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
 
 ####################################################################
@@ -518,11 +518,11 @@ def create_nginx_metric_group(group_name, group_label)
   metric_group
 end
 
-def create_nginx_dashboard(metric_group, dashboard, server_list)
+def create_nginx_dashboard(metric_group, name, server_list)
   puts "Creating new Nginx Dashboard"
-  servers = server_list.map {|server_enttry| server_entry["name"]}
+  servers = server_list.map {|server_entry| server_entry["name"]}
   metrics = %w(active_connections connections_accepts connections_handled reading writing)
-  CopperEgg::CustomDashboard.create!(metric_group, :name => dashboard, :identifiers => servers, :metrics => metrics)
+  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
 
 ####################################################################
@@ -583,13 +583,13 @@ end
       metric_group = CopperEgg::MetricGroup.find(@config[service]["group_name"]) || create_metric_group(@config[service]["group_name"])
 
       puts "Checking for existence of #{service} Dashboard"
-      dashboard = CopperEgg::CustomDashboard.find_by_name(@config[service]["dashboard"]) || create_dashboard(service, metric_group)
+      CopperEgg::CustomDashboard.find_by_name(@config[service]["dashboard"]) || create_dashboard(service, metric_group)
 
       child_pid = fork {
         trap("INT") { child_interrupt if !@interrupted }
         trap("TERM") { child_interrupt if !@interrupted }
 
-        monitor_service(service, apikey)
+        monitor_service(service, metric_group)
       }
       @worker_pids.push child_pid
     rescue => e
