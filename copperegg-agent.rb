@@ -239,7 +239,7 @@ def create_redis_metric_group(group_name, group_label)
   metric_group.metrics << {:type => "ce_gauge",   :name => "rdb_changes_since_last_save",:unit => "Changes"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "instantaneous_ops_per_sec",  :unit => "Ops"}
   metric_group.metrics << {:type => "ce_counter", :name => "rejected_connections",       :unit => "Connections"}
-  metric_group.save!
+  metric_group.save
   metric_group
 end
 
@@ -369,7 +369,7 @@ def create_mysql_metric_group(group_name, group_label)
   metric_group.metrics << {:type => "ce_counter", :name => "Com_update",                   :unit => "Commands"}
   metric_group.metrics << {:type => "ce_counter", :name => "Queries",                      :unit => "Queries"}
   metric_group.metrics << {:type => "ce_counter", :name => "Slow_queries",                 :unit => "Slow Queries"}
-  metric_group.save!
+  metric_group.save
   metric_group
 end
 
@@ -451,7 +451,7 @@ def create_apache_metric_group(group_name, group_label)
   metric_group.metrics << {:type => "ce_gauge",   :name => "connections_async_writing",   :unit => "Connections"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "connections_async_keepalive", :unit => "Connections"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "connections_async_closing",   :unit => "Connections"}
-  metric_group.save!
+  metric_group.save
   metric_group
 end
 
@@ -514,7 +514,7 @@ def create_nginx_metric_group(group_name, group_label)
   metric_group.metrics << {:type => "ce_gauge",   :name => "reading",                :unit => "Connections"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "writing",                :unit => "Connections"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "waiting",                :unit => "Connections"}
-  metric_group.save!
+  metric_group.save
   metric_group
 end
 
