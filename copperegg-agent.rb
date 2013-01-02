@@ -99,6 +99,7 @@ if !@config.nil?
   # load config
   if !@config["copperegg"].nil?
     CopperEgg::Api.apikey = @config["copperegg"]["apikey"] if !@config["copperegg"]["apikey"].nil? && CopperEgg::Api.apikey.nil?
+    CopperEgg::Api.host = @config["copperegg"]["host"] if !@config["copperegg"]["host"].nil?
     @freq = @config["copperegg"]["frequency"] if !@config["copperegg"]["frequency"].nil?
     @services = @config['copperegg']['services']
   else
@@ -584,7 +585,8 @@ end
       raise "Could not create a metric group for #{service}" if metric_group.nil?
 
       puts "Checking for existence of #{service} Dashboard"
-      CopperEgg::CustomDashboard.find_by_name(@config[service]["dashboard"]) || create_dashboard(service, metric_group)
+      dashboard = CopperEgg::CustomDashboard.find_by_name(@config[service]["dashboard"]) || create_dashboard(service, metric_group)
+      puts "Could not create a dashboard for #{service}" if dashboard.nil?
     rescue => e
       puts e.message
       next
