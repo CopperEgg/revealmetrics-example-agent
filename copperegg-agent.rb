@@ -581,11 +581,13 @@ end
     begin
       puts "Checking for existence of metric group for #{service}"
       metric_group = CopperEgg::MetricGroup.find(@config[service]["group_name"]) || create_metric_group(service)
+      raise "Could not create a metric group for #{service}" if metric_group.nil?
 
       puts "Checking for existence of #{service} Dashboard"
       CopperEgg::CustomDashboard.find_by_name(@config[service]["dashboard"]) || create_dashboard(service, metric_group)
     rescue => e
       puts e.message
+      next
     end
     child_pid = fork {
       trap("INT") { child_interrupt if !@interrupted }
