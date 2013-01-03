@@ -577,15 +577,19 @@ def monitor_service(service, metric_group)
 end
 
 #################################
+
+dashboards = CopperEgg::CustomDashboard.find
+metric_groups = CopperEgg::MetricGroup.find
+
 @services.each do |service|
   if @config[service] && @config[service]["servers"].length > 0
     begin
       puts "Checking for existence of metric group for #{service}"
-      metric_group = CopperEgg::MetricGroup.find(@config[service]["group_name"]) || create_metric_group(service)
+      metric_group = metric_groups.detect {|m| m.name == @config[service]["group_name"]} || create_metric_group(service)
       raise "Could not create a metric group for #{service}" if metric_group.nil?
 
       puts "Checking for existence of #{service} Dashboard"
-      dashboard = CopperEgg::CustomDashboard.find_by_name(@config[service]["dashboard"]) || create_dashboard(service, metric_group)
+      dashboard = dashboards.detect {|d| d.name == @config[service]["dashboard"]} || create_dashboard(service, metric_group)
       puts "Could not create a dashboard for #{service}" if dashboard.nil?
     rescue => e
       puts e.message
