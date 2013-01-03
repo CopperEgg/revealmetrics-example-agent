@@ -8,9 +8,9 @@ If you do not have a CopperEgg account, you may create one at <https://copperegg
 If you have a CopperEgg account, you may log in and use RevealMetrics at <https://app.copperegg.com/login>
 
 
-#Getting Started with RevealMetrics Ruby Agent
+# Getting Started with RevealMetrics Ruby Agent
 
-##1. Install dependencies ruby and mysql-dev
+## 1. Install dependencies ruby and mysql-dev
 
 This has been tested with both ruby 1.8.7 and 1.9.3.  We recommend 1.9.3+ if it's easy,
 but many operating systems still default to 1.8.7, so we'll use that here.
@@ -28,7 +28,7 @@ On RedHat/Fedora/CentOS/Amazon Linux, run:
     sudo yum install -y ruby rubygems mysql-devel
 
 
-##2. Download and configure the agent
+## 2. Download and configure the agent
 
 Download the [revealmetrics-example-agent.zip](https://github.com/CopperEgg/revealmetrics-example-agent/archive/master.tar.gz)
 file \([hosted at github](https://github.com/CopperEgg/revealmetrics-example-agent)\) on a Linux or Mac OSX system:
@@ -52,7 +52,7 @@ Remove any sections that you do not wish to monitor, and edit server settings ac
 Be sure to keep the same spacing supplied in the original file.
 
 
-##3. Install gems
+## 3. Install gems
 
 Ensure that the ruby gems are installed.  Do not use the "--without=mysql" flag if you want to monitor mysql:
 

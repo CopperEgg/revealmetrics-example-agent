@@ -1,7 +1,6 @@
 source 'http://rubygems.org'
 
-gem 'copperegg'
-gem 'json_pure'
+gem 'copperegg', '~> 0.6.0.pre'
 
 group :redis do
   gem 'redis'
