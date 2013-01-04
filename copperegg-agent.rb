@@ -439,8 +439,8 @@ def create_apache_metric_group(group_name, group_label)
   puts "Creating Apache metric group"
 
   metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
-  metric_group.metrics << {:type => "ce_gauge",   :name => "total_accesses",              :unit => "Accesses"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "total_kbytes",                :unit => "kBytes"}
+  metric_group.metrics << {:type => "ce_counter", :name => "total_accesses",              :unit => "Accesses"}
+  metric_group.metrics << {:type => "ce_counter", :name => "total_kbytes",                :unit => "kBytes"}
   metric_group.metrics << {:type => "ce_gauge_f", :name => "cpu_load",                    :unit => "Percent"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "uptime",                      :unit => "Seconds"}
   metric_group.metrics << {:type => "ce_gauge_f", :name => "request_per_sec",             :unit => "Req/s"}
@@ -509,9 +509,9 @@ def create_nginx_metric_group(group_name, group_label)
 
   metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
   metric_group.metrics << {:type => "ce_gauge",   :name => "active_connections",     :unit => "Connections"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "connections_accepts",    :unit => "Connections"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "connections_handled",    :unit => "Connections"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "connections_requested",  :unit => "Connections"}
+  metric_group.metrics << {:type => "ce_counter", :name => "connections_accepts",    :unit => "Connections"}
+  metric_group.metrics << {:type => "ce_counter", :name => "connections_handled",    :unit => "Connections"}
+  metric_group.metrics << {:type => "ce_counter", :name => "connections_requested",  :unit => "Connections"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "reading",                :unit => "Connections"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "writing",                :unit => "Connections"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "waiting",                :unit => "Connections"}
