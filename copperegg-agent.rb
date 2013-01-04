@@ -22,6 +22,21 @@ def help
   puts "  -a https://api.copperegg.com    (API endpoint to use [DEBUG ONLY])"
 end
 
+TIME_STRING='%Y/%m/%d %H:%M:%S'
+##########
+# Used to prefix the log message with a date.
+def log(str)
+  begin
+    str.split("\n").each do |str|
+      puts "#{Time.now.strftime(TIME_STRING)} pid:#{Process.pid}> #{str}"
+    end
+    $stdout.flush
+  rescue Exception => e
+    # do nothing -- just catches unimportant errors when we kill the process
+    # and it's in the middle of logging or flushing.
+  end
+end
+
 def interruptible_sleep(seconds)
   seconds.times {|i| sleep 1 if !@interrupted}
 end
@@ -29,11 +44,11 @@ end
 def child_interrupt
   # do child clean-up here
   @interrupted = true
-  puts "Exiting pid #{Process.pid}"
+  log "Exiting pid #{Process.pid}"
 end
 
 def parent_interrupt
-  puts "INTERRUPTED"
+  log "INTERRUPTED"
   # parent clean-up
   @interrupted = true
 
@@ -41,15 +56,15 @@ def parent_interrupt
     Process.kill 'TERM', pid
   end
 
-  puts "Waiting for all workers to exit"
+  log "Waiting for all workers to exit"
   Process.waitall
 
   if @monitor_thread
-    puts "Waiting for monitor thread to exit"
+    log "Waiting for monitor thread to exit"
     @monitor_thread.join
   end
 
-  puts "Exiting cleanly"
+  log "Exiting cleanly"
   exit
 end
 
@@ -103,20 +118,20 @@ if !@config.nil?
     @freq = @config["copperegg"]["frequency"] if !@config["copperegg"]["frequency"].nil?
     @services = @config['copperegg']['services']
   else
-    puts "You have no copperegg entry in your config.yml!"
-    puts "Edit your config.yml and restart."
+    log "You have no copperegg entry in your config.yml!"
+    log "Edit your config.yml and restart."
     exit
   end
 end
 
 if CopperEgg::Api.apikey.nil?
-  puts "You need to supply an apikey with the -k option or in the config.yml."
+  log "You need to supply an apikey with the -k option or in the config.yml."
   exit
 end
 
 if @services.length == 0
-  puts "No services listed in the config file."
-  puts "Nothing will be monitored!"
+  log "No services listed in the config file."
+  log "Nothing will be monitored!"
   exit
 end
 
@@ -142,7 +157,7 @@ end
 
 def monitor_redis(redis_servers, group_name)
   require 'redis'
-  puts "Monitoring Redis: "
+  log "Monitoring Redis: "
   
   while !@interupted do
     return if @interrupted
@@ -165,7 +180,7 @@ def monitor_redis(redis_servers, group_name)
         redis = connect_to_redis(redis_uri)
         rinfo = redis.info()
       rescue Exception => e
-        puts "Error getting stats from: #{label} [skipping]"
+        log "Error getting stats from: #{label} [skipping]"
         next
       end
 
@@ -210,7 +225,7 @@ def monitor_redis(redis_servers, group_name)
 end
 
 def create_redis_metric_group(group_name, group_label)
-  puts "Creating Redis metric group"
+  log "Creating Redis metric group"
 
   metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
   metric_group.metrics << {:type => "ce_counter", :name => "uptime",                     :unit => "Seconds"}
@@ -245,7 +260,7 @@ def create_redis_metric_group(group_name, group_label)
 end
 
 def create_redis_dashboard(metric_group, name, server_list)
-  puts "Creating new Redis Dashboard"
+  log "Creating new Redis Dashboard"
   servers = server_list.map { |server_entry| server_entry["name"] }
   metrics = %w(keys total_connections_received connected_clients used_memory total_commands_processed)
   CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
@@ -264,7 +279,7 @@ end
 
 def monitor_mysql(mysql_servers, group_name)
   require 'mysql2'
-  puts "Monitoring MySQL: "
+  log "Monitoring MySQL: "
   return if @interrupted
 
   while !@interupted do
@@ -278,7 +293,7 @@ def monitor_mysql(mysql_servers, group_name)
         mstats = mysql.query('SHOW GLOBAL STATUS;')
 
       rescue Exception => e
-        puts "Error getting stats from: #{mhost['hostname']} [skipping]"
+        log "Error getting stats from: #{mhost['hostname']} [skipping]"
         next
       end
 
@@ -333,7 +348,7 @@ def monitor_mysql(mysql_servers, group_name)
 end
 
 def create_mysql_metric_group(group_name, group_label)
-  puts "Creating MySQL metric group"
+  log "Creating MySQL metric group"
 
   metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
   metric_group.metrics << {:type => "ce_gauge",   :name => "Threads_connected",            :unit => "Threads"}
@@ -375,7 +390,7 @@ def create_mysql_metric_group(group_name, group_label)
 end
 
 def create_mysql_dashboard(metric_group, name, server_list)
-  puts "Creating new MySQL/RDS Dashboard"
+  log "Creating new MySQL/RDS Dashboard"
   servers = server_list.map {|server_entry| server_entry["name"]}
   metrics = %w(Queries Slow_queries Open_tables Bytes_received Bytes_sent)
   CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
@@ -384,7 +399,7 @@ end
 ####################################################################
 
 def monitor_apache(apache_servers, group_name)
-  puts "Monitoring Apache: "
+  log "Monitoring Apache: "
   return if @interrupted
 
   while !@interupted do
@@ -403,7 +418,7 @@ def monitor_apache(apache_servers, group_name)
         astats = response.body.split(/\r*\n/)
 
       rescue Exception => e
-        puts "Error getting stats from: #{ahost['url']} [skipping]"
+        log "Error getting stats from: #{ahost['url']} [skipping]"
         next
       end
 
@@ -436,7 +451,7 @@ def monitor_apache(apache_servers, group_name)
 end
 
 def create_apache_metric_group(group_name, group_label)
-  puts "Creating Apache metric group"
+  log "Creating Apache metric group"
 
   metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
   metric_group.metrics << {:type => "ce_counter", :name => "total_accesses",              :unit => "Accesses"}
@@ -457,7 +472,7 @@ def create_apache_metric_group(group_name, group_label)
 end
 
 def create_apache_dashboard(metric_group, name, server_list)
-  puts "Creating new Apache Dashboard"
+  log "Creating new Apache Dashboard"
   servers = server_list.map {|server_entry| server_entry["name"]}
   metrics = %w(total_accesses request_per_sec busy_workers connections_total idle_workers)
   CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
@@ -466,7 +481,7 @@ end
 ####################################################################
 
 def monitor_nginx(nginx_servers, group_name)
-  puts "Monitoring Nginx: "
+  log "Monitoring Nginx: "
   return if @interrupted
 
   while !@interupted do
@@ -485,7 +500,7 @@ def monitor_nginx(nginx_servers, group_name)
         nstats = response.body.split(/\r*\n/)
 
       rescue Exception => e
-        puts "Error getting stats from: #{nhost['url']} [skipping]"
+        log "Error getting stats from: #{nhost['url']} [skipping]"
         next
       end
 
@@ -505,7 +520,7 @@ def monitor_nginx(nginx_servers, group_name)
 end
 
 def create_nginx_metric_group(group_name, group_label)
-  puts "Creating Nginx metric group"
+  log "Creating Nginx metric group"
 
   metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
   metric_group.metrics << {:type => "ce_gauge",   :name => "active_connections",     :unit => "Connections"}
@@ -520,7 +535,7 @@ def create_nginx_metric_group(group_name, group_label)
 end
 
 def create_nginx_dashboard(metric_group, name, server_list)
-  puts "Creating new Nginx Dashboard"
+  log "Creating new Nginx Dashboard"
   servers = server_list.map {|server_entry| server_entry["name"]}
   metrics = %w(active_connections connections_accepts connections_handled reading writing)
   CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
@@ -584,15 +599,15 @@ metric_groups = CopperEgg::MetricGroup.find
 @services.each do |service|
   if @config[service] && @config[service]["servers"].length > 0
     begin
-      puts "Checking for existence of metric group for #{service}"
+      log "Checking for existence of metric group for #{service}"
       metric_group = metric_groups.detect {|m| m.name == @config[service]["group_name"]} || create_metric_group(service)
       raise "Could not create a metric group for #{service}" if metric_group.nil?
 
-      puts "Checking for existence of #{service} Dashboard"
+      log "Checking for existence of #{service} Dashboard"
       dashboard = dashboards.detect {|d| d.name == @config[service]["dashboard"]} || create_dashboard(service, metric_group)
-      puts "Could not create a dashboard for #{service}" if dashboard.nil?
+      log "Could not create a dashboard for #{service}" if dashboard.nil?
     rescue => e
-      puts e.message
+      log e.message
       next
     end
     child_pid = fork {
