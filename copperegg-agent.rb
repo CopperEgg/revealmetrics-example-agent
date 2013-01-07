@@ -208,14 +208,15 @@ def monitor_redis(redis_servers, group_name)
       metrics["keys"]                         = rinfo["db0"].split(',')[0].split('=')[1].to_i
       metrics["expires"]                      = rinfo["db0"].split(',')[1].split('=')[1].to_i
 
-      # check version of rinfo (2.4 or 2.6)
-      if !rinfo["redis_version"].match("2.4")
-        metrics["used_memory_lua"]            = rinfo["used_memory_lua"].to_i
-        metrics["rdb_changes_since_last_save"]= rinfo["rdb_changes_since_last_save"].to_i
-        metrics["instantaneous_ops_per_sec"]  = rinfo["instantaneous_ops_per_sec"].to_i
-        metrics["rejected_connections"]       = rinfo["rejected_connections"].to_i
-      end
-      
+      # Uncomment these lines if you are using Redis 2.6:
+      #if !rinfo["redis_version"].match("2.4")
+        #metrics["used_memory_lua"]            = rinfo["used_memory_lua"].to_i
+        #metrics["rdb_changes_since_last_save"]= rinfo["rdb_changes_since_last_save"].to_i
+        #metrics["instantaneous_ops_per_sec"]  = rinfo["instantaneous_ops_per_sec"].to_i
+        #metrics["rejected_connections"]       = rinfo["rejected_connections"].to_i
+      #end
+      # End Redis 2.6 metrics
+
       redis.client.disconnect
 
       CopperEgg::MetricSample.save(group_name, label, Time.now.to_i, metrics)
@@ -250,11 +251,14 @@ def create_redis_metric_group(group_name, group_label)
   metric_group.metrics << {:type => "ce_gauge",   :name => "keys",                       :unit => "Keys"}
   metric_group.metrics << {:type => "ce_counter", :name => "evicted_keys",               :unit => "Keys"}
   metric_group.metrics << {:type => "ce_counter", :name => "expires",                    :unit => "Keys"}
-  # Redis 2.6:
-  metric_group.metrics << {:type => "ce_counter", :name => "used_memory_lua",            :unit => "Bytes"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "rdb_changes_since_last_save",:unit => "Changes"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "instantaneous_ops_per_sec",  :unit => "Ops"}
-  metric_group.metrics << {:type => "ce_counter", :name => "rejected_connections",       :unit => "Connections"}
+
+  # Uncomment these lines if you are using Redis 2.6:
+  #metric_group.metrics << {:type => "ce_counter", :name => "used_memory_lua",            :unit => "Bytes"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "rdb_changes_since_last_save",:unit => "Changes"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "instantaneous_ops_per_sec",  :unit => "Ops"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "rejected_connections",       :unit => "Connections"}
+  # End Redis 2.6 metrics
+
   metric_group.save
   metric_group
 end
@@ -262,8 +266,12 @@ end
 def create_redis_dashboard(metric_group, name, server_list)
   log "Creating new Redis Dashboard"
   servers = server_list.map { |server_entry| server_entry["name"] }
-  metrics = %w(keys total_connections_received connected_clients used_memory total_commands_processed)
-  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
+  metrics = %w(keys total_connections_received connected_slaves blocked_clients connected_clients used_memory total_commands_processed)
+
+  # Create a dashboard for all identifiers:
+  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
+  # Create a dashboard for only the servers we've defined:
+  #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
 
 ####################################################################
@@ -392,8 +400,12 @@ end
 def create_mysql_dashboard(metric_group, name, server_list)
   log "Creating new MySQL/RDS Dashboard"
   servers = server_list.map {|server_entry| server_entry["name"]}
-  metrics = %w(Queries Slow_queries Open_tables Bytes_received Bytes_sent)
-  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
+  metrics = %w(Created_tmp_disk_tables Qcache_hits Threads_connected Slow_queries Queries Open_tables Bytes_received Bytes_sent)
+
+  # Create a dashboard for all identifiers:
+  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
+  # Create a dashboard for only the servers we've defined:
+  #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
 
 ####################################################################
@@ -439,10 +451,13 @@ def monitor_apache(apache_servers, group_name)
       metrics["bytes_per_request"]            = ainfo["BytesPerReq"].to_f
       metrics["busy_workers"]                 = ainfo["BusyWorkers"].to_i
       metrics["idle_workers"]                 = ainfo["IdleWorkers"].to_i
-      metrics["connections_total"]            = ainfo["ConnsTotal"].to_i
-      metrics["connections_async_writing"]    = ainfo["ConnsAsyncWriting"].to_i
-      metrics["connections_async_keepalive"]  = ainfo["ConnsAsyncKeepAlive"].to_i
-      metrics["connections_async_closing"]    = ainfo["ConnsAsyncClosing"].to_i
+
+      # Uncomment these lines if you are using apache 2.4+
+      #metrics["connections_total"]            = ainfo["ConnsTotal"].to_i
+      #metrics["connections_async_writing"]    = ainfo["ConnsAsyncWriting"].to_i
+      #metrics["connections_async_keepalive"]  = ainfo["ConnsAsyncKeepAlive"].to_i
+      #metrics["connections_async_closing"]    = ainfo["ConnsAsyncClosing"].to_i
+      # End apache 2.4+ metrics
 
       CopperEgg::MetricSample.save(group_name, ahost["name"], Time.now.to_i, metrics)
     end
@@ -463,10 +478,14 @@ def create_apache_metric_group(group_name, group_label)
   metric_group.metrics << {:type => "ce_gauge_f", :name => "bytes_per_request",           :unit => "Bytes/Req"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "busy_workers",                :unit => "Busy Workers"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "idle_workers",                :unit => "Idle Workers"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "connections_total",           :unit => "Connections"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "connections_async_writing",   :unit => "Connections"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "connections_async_keepalive", :unit => "Connections"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "connections_async_closing",   :unit => "Connections"}
+
+  # Uncomment these lines if you are using apache 2.4+
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "connections_total",           :unit => "Connections"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "connections_async_writing",   :unit => "Connections"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "connections_async_keepalive", :unit => "Connections"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "connections_async_closing",   :unit => "Connections"}
+  # End apache 2.4+ metrics
+
   metric_group.save
   metric_group
 end
@@ -474,8 +493,12 @@ end
 def create_apache_dashboard(metric_group, name, server_list)
   log "Creating new Apache Dashboard"
   servers = server_list.map {|server_entry| server_entry["name"]}
-  metrics = %w(total_accesses request_per_sec busy_workers connections_total idle_workers)
-  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
+  metrics = %w(idle_workers busy_workers bytes_per_request bytes_per_sec request_per_sec total_kbytes total_accesses)
+
+  # Create a dashboard for all identifiers:
+  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
+  # Create a dashboard for only the servers we've defined:
+  #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
 
 ####################################################################
@@ -537,8 +560,12 @@ end
 def create_nginx_dashboard(metric_group, name, server_list)
   log "Creating new Nginx Dashboard"
   servers = server_list.map {|server_entry| server_entry["name"]}
-  metrics = %w(active_connections connections_accepts connections_handled reading writing)
-  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
+  metrics = %w(waiting writing reading connections_requested connections_handled connections_accepts active_connections )
+
+  # Create a dashboard for all identifiers:
+  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
+  # Create a dashboard for only the servers we've defined:
+  #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
 
 ####################################################################
