@@ -9,6 +9,8 @@ require 'copperegg'
 require 'json/pure'
 require 'yaml'
 
+class CopperEggAgentError < Exception; end
+
 ####################################################################
 
 def help
@@ -20,6 +22,21 @@ def help
   puts "  -a https://api.copperegg.com    (API endpoint to use [DEBUG ONLY])"
 end
 
+TIME_STRING='%Y/%m/%d %H:%M:%S'
+##########
+# Used to prefix the log message with a date.
+def log(str)
+  begin
+    str.split("\n").each do |str|
+      puts "#{Time.now.strftime(TIME_STRING)} pid:#{Process.pid}> #{str}"
+    end
+    $stdout.flush
+  rescue Exception => e
+    # do nothing -- just catches unimportant errors when we kill the process
+    # and it's in the middle of logging or flushing.
+  end
+end
+
 def interruptible_sleep(seconds)
   seconds.times {|i| sleep 1 if !@interrupted}
 end
@@ -27,11 +44,11 @@ end
 def child_interrupt
   # do child clean-up here
   @interrupted = true
-  puts "Exiting pid #{Process.pid}"
+  log "Exiting pid #{Process.pid}"
 end
 
 def parent_interrupt
-  puts "INTERRUPTED"
+  log "INTERRUPTED"
   # parent clean-up
   @interrupted = true
 
@@ -39,17 +56,18 @@ def parent_interrupt
     Process.kill 'TERM', pid
   end
 
-  puts "Waiting for all workers to exit"
+  log "Waiting for all workers to exit"
   Process.waitall
 
   if @monitor_thread
-    puts "Waiting for monitor thread to exit"
+    log "Waiting for monitor thread to exit"
     @monitor_thread.join
   end
 
-  puts "Exiting cleanly"
+  log "Exiting cleanly"
   exit
 end
+
 ####################################################################
 
 # get options
@@ -63,7 +81,6 @@ opts = GetoptLong.new(
 )
 
 config_file = "config.yml"
-apikey = nil
 @apihost = nil
 @debug = 0
 @freq = 60  # update frequency in seconds
@@ -82,11 +99,11 @@ opts.each do |opt, arg|
   when '--config'
     config_file = arg
   when '--apikey'
-    apikey = arg
+    CopperEgg::Api.apikey = arg
   when '--frequency'
     @freq = arg.to_i
   when '--apihost'
-    @apihost = arg
+    CopperEgg::Api.host = arg
   end
 end
 
@@ -96,24 +113,25 @@ end
 if !@config.nil?
   # load config
   if !@config["copperegg"].nil?
-    apikey = @config["copperegg"]["apikey"] if !@config["copperegg"]["apikey"].nil? && apikey.nil?
+    CopperEgg::Api.apikey = @config["copperegg"]["apikey"] if !@config["copperegg"]["apikey"].nil? && CopperEgg::Api.apikey.nil?
+    CopperEgg::Api.host = @config["copperegg"]["host"] if !@config["copperegg"]["host"].nil?
     @freq = @config["copperegg"]["frequency"] if !@config["copperegg"]["frequency"].nil?
     @services = @config['copperegg']['services']
   else
-    puts "You have no copperegg entry in your config.yml!"
-    puts "Edit your config.yml and restart."
+    log "You have no copperegg entry in your config.yml!"
+    log "Edit your config.yml and restart."
     exit
   end
 end
 
-if apikey.nil?
-  puts "You need to supply an apikey with the -k option or in the config.yml."
+if CopperEgg::Api.apikey.nil?
+  log "You need to supply an apikey with the -k option or in the config.yml."
   exit
 end
 
 if @services.length == 0
-  puts "No services listed in the config file."
-  puts "Nothing will be monitored!"
+  log "No services listed in the config file."
+  log "Nothing will be monitored!"
   exit
 end
 
@@ -137,12 +155,9 @@ def connect_to_redis(uri, attempts=10)
   return redis
 end
 
-def monitor_redis(redis_servers, group_name, apikey)
+def monitor_redis(redis_servers, group_name)
   require 'redis'
-
-  rm = CopperEgg::Metrics.new(apikey, @apihost)
-
-  puts "Monitoring Redis: "
+  log "Monitoring Redis: "
   
   while !@interupted do
     return if @interrupted
@@ -165,7 +180,7 @@ def monitor_redis(redis_servers, group_name, apikey)
         redis = connect_to_redis(redis_uri)
         rinfo = redis.info()
       rescue Exception => e
-        puts "Error getting stats from: #{label} [skipping]"
+        log "Error getting Redis stats from: #{label} [skipping]"
         next
       end
 
@@ -190,142 +205,79 @@ def monitor_redis(redis_servers, group_name, apikey)
       metrics["pubsub_channels"]              = rinfo["pubsub_channels"].to_i
       metrics["pubsub_patterns"]              = rinfo["pubsub_patterns"].to_i
       metrics["latest_fork_usec"]             = rinfo["latest_fork_usec"].to_i
-      metrics["keys"]                         = rinfo["db0"].split(',')[0].split('=')[1].to_i
-      metrics["expires"]                      = rinfo["db0"].split(',')[1].split('=')[1].to_i
+      metrics["keys"]                         = (rinfo["db0"] ? rinfo["db0"].split(',')[0].split('=')[1].to_i : 0)
+      metrics["expires"]                      = (rinfo["db0"] ? rinfo["db0"].split(',')[1].split('=')[1].to_i : 0)
 
-      # check version of rinfo (2.4 or 2.6)
-      if !rinfo["redis_version"].match("2.4")
+      # Uncomment these lines if you are using Redis 2.6:
+      #if !rinfo["redis_version"].match("2.4")
+        #metrics["used_memory_lua"]            = rinfo["used_memory_lua"].to_i
+        #metrics["rdb_changes_since_last_save"]= rinfo["rdb_changes_since_last_save"].to_i
+        #metrics["instantaneous_ops_per_sec"]  = rinfo["instantaneous_ops_per_sec"].to_i
+        #metrics["rejected_connections"]       = rinfo["rejected_connections"].to_i
+      #end
+      # End Redis 2.6 metrics
 
-        metrics["used_memory_lua"]            = rinfo["used_memory_lua"].to_i
-        metrics["rdb_changes_since_last_save"]= rinfo["rdb_changes_since_last_save"].to_i
-        metrics["instantaneous_ops_per_sec"]  = rinfo["instantaneous_ops_per_sec"].to_i
-        metrics["rejected_connections"]       = rinfo["rejected_connections"].to_i
-
-        # command stats:
-        #commandstats = redis.info("commandstats")
-
-      end
-      
       redis.client.disconnect
 
-      rm.store_sample(group_name, label, Time.now.to_i, metrics)
-    
+      CopperEgg::MetricSample.save(group_name, label, Time.now.to_i, metrics)
     end
     interruptible_sleep @freq
   end
 end
 
-def create_redis_metric_group(group_name, group_label, apikey)
-  ce_metrics = CopperEgg::Metrics.new(apikey, @apihost)
+def ensure_redis_metric_group(metric_group, group_name, group_label)
+  if metric_group.nil? || !metric_group.is_a?(CopperEgg::MetricGroup)
+    log "Creating Redis metric group"
+    metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+  else
+    log "Updating Redis metric group"
+    metric_group.frequency = @freq
+  end
 
-  # no metric group found - create one
-  puts "Creating Redis metric group"
+  metric_group.metrics = []
+  metric_group.metrics << {:type => "ce_counter", :name => "uptime",                     :unit => "Seconds"}
+  metric_group.metrics << {:type => "ce_gauge_f", :name => "used_cpu_sys",               :unit => "Percent"}
+  metric_group.metrics << {:type => "ce_gauge_f", :name => "used_cpu_user",              :unit => "Percent"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "connected_clients",          :unit => "Clients"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "connected_slaves",           :unit => "Slaves"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "blocked_clients",            :unit => "Clients"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "used_memory",                :unit => "Bytes"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "used_memory_rss",            :unit => "Bytes"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "used_memory_peak",           :unit => "Bytes"}
+  metric_group.metrics << {:type => "ce_gauge_f", :name => "mem_fragmentation_ratio"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "changes_since_last_save",    :unit => "Changes"}
+  metric_group.metrics << {:type => "ce_counter", :name => "total_connections_received", :unit => "Connections"}
+  metric_group.metrics << {:type => "ce_counter", :name => "total_commands_processed",   :unit => "Commands"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "expired_keys",               :unit => "Keys"}
+  metric_group.metrics << {:type => "ce_counter", :name => "keyspace_hits",              :unit => "Hits"}
+  metric_group.metrics << {:type => "ce_counter", :name => "keyspace_misses",            :unit => "Misses"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "pubsub_channels",            :unit => "Channels"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "pubsub_patterns",            :unit => "Patterns"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "latest_fork_usec",           :unit => "usec"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "keys",                       :unit => "Keys"}
+  metric_group.metrics << {:type => "ce_counter", :name => "evicted_keys",               :unit => "Keys"}
+  metric_group.metrics << {:type => "ce_counter", :name => "expires",                    :unit => "Keys"}
 
-  groupcfg = {}
-  groupcfg["name"] = group_name
-  groupcfg["label"] = group_label
-  groupcfg["frequency"] = @freq
-  groupcfg["metrics"] = [{"type"=>"ce_counter", "name"=>"uptime",                     "unit"=>"Seconds"},
-                         {"type"=>"ce_gauge_f", "name"=>"used_cpu_sys",               "unit"=>"Percent"},
-                         {"type"=>"ce_gauge_f", "name"=>"used_cpu_user",              "unit"=>"Percent"},
-                         {"type"=>"ce_gauge",   "name"=>"connected_clients",          "unit"=>"Clients"},
-                         {"type"=>"ce_gauge",   "name"=>"connected_slaves",           "unit"=>"Slaves"},
-                         {"type"=>"ce_gauge",   "name"=>"blocked_clients",            "unit"=>"Clients"},
-                         {"type"=>"ce_gauge",   "name"=>"used_memory",                "unit"=>"Bytes"},
-                         {"type"=>"ce_gauge",   "name"=>"used_memory_rss",            "unit"=>"Bytes"},
-                         {"type"=>"ce_gauge",   "name"=>"used_memory_peak",           "unit"=>"Bytes"},
-                         {"type"=>"ce_gauge_f", "name"=>"mem_fragmentation_ratio"},
-                         {"type"=>"ce_gauge",   "name"=>"changes_since_last_save",    "unit"=>"Changes"},
-                         {"type"=>"ce_counter", "name"=>"total_connections_received", "unit"=>"Connections"},
-                         {"type"=>"ce_counter", "name"=>"total_commands_processed",   "unit"=>"Commands"},
-                         {"type"=>"ce_gauge",   "name"=>"expired_keys",               "unit"=>"Keys"},
-                         {"type"=>"ce_counter", "name"=>"keyspace_hits",              "unit"=>"Hits"},
-                         {"type"=>"ce_counter", "name"=>"keyspace_misses",            "unit"=>"Misses"},
-                         {"type"=>"ce_gauge",   "name"=>"pubsub_channels",            "unit"=>"Channels"},
-                         {"type"=>"ce_gauge",   "name"=>"pubsub_patterns",            "unit"=>"Patterns"},
-                         {"type"=>"ce_gauge",   "name"=>"latest_fork_usec",           "unit"=>"usec"},
-                         {"type"=>"ce_gauge",   "name"=>"keys",                       "unit"=>"Keys"},
-                         {"type"=>"ce_counter", "name"=>"evicted_keys",               "unit"=>"Keys"},
-                         {"type"=>"ce_counter", "name"=>"expires",                    "unit"=>"Keys"},
-                          # Redis 2.6:
-                         {"type"=>"ce_counter", "name"=>"used_memory_lua",            "unit"=>"Bytes"},
-                         {"type"=>"ce_gauge",   "name"=>"rdb_changes_since_last_save","unit"=>"Changes"},
-                         {"type"=>"ce_gauge",   "name"=>"instantaneous_ops_per_sec",  "unit"=>"Ops"},
-                         {"type"=>"ce_counter", "name"=>"rejected_connections",       "unit"=>"Connections"}
-                       ]
+  # Uncomment these lines if you are using Redis 2.6:
+  #metric_group.metrics << {:type => "ce_counter", :name => "used_memory_lua",            :unit => "Bytes"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "rdb_changes_since_last_save",:unit => "Changes"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "instantaneous_ops_per_sec",  :unit => "Ops"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "rejected_connections",       :unit => "Connections"}
+  # End Redis 2.6 metrics
 
-  res = ce_metrics.create_metric_group(group_name, groupcfg)
+  metric_group.save
+  metric_group
 end
 
-def create_redis_dashboard(group_name, dashboard, server_list, apikey)
-  servers = []
-  server_list.each do |server_entry|
-    servers.push server_entry["name"]
-  end
+def create_redis_dashboard(metric_group, name, server_list)
+  log "Creating new Redis Dashboard"
+  servers = server_list.map { |server_entry| server_entry["name"] }
+  metrics = %w(keys total_connections_received connected_slaves blocked_clients connected_clients used_memory total_commands_processed)
 
-  puts "Creating new Redis Dashboard"
-  ce_metrics = CopperEgg::Metrics.new(apikey, @apihost)
-
-  # Configure a dashboard:
-  dashcfg = {}
-  dashcfg["name"] = dashboard
-  dashcfg["data"] = {}
-
-  widgets = {}
-  widget_cnt = 0
-
-  servers.each do |server|
-    # Create a widget  
-    widgetcfg = {}
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "19", "keys"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "11", "total_connections_received"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "3", "connected_clients"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "6", "used_memory"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "12", "total_commands_processed"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-  end
-
-  # Add the widgets to the dashboard:
-  dashcfg["data"]["widgets"] = widgets
-
-  # Set the order we want on the dashboard:
-  dashcfg["data"]["order"] = widgets.keys
-
-  # Create the dashboard:
-  res = ce_metrics.create_dashboard(dashcfg)
+  # Create a dashboard for all identifiers:
+  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
+  # Create a dashboard for only the servers we've defined:
+  #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
 
 ####################################################################
@@ -339,12 +291,10 @@ def connect_to_mysql(hostname, user, pw, db)
   return client
 end
 
-def monitor_mysql(mysql_servers, group_name, apikey)
+def monitor_mysql(mysql_servers, group_name)
   require 'mysql2'
-  puts "Monitoring MySQL: "
+  log "Monitoring MySQL: "
   return if @interrupted
-
-  rm = CopperEgg::Metrics.new(apikey, @apihost)
 
   while !@interupted do
     return if @interrupted
@@ -357,7 +307,7 @@ def monitor_mysql(mysql_servers, group_name, apikey)
         mstats = mysql.query('SHOW GLOBAL STATUS;')
 
       rescue Exception => e
-        puts "Error getting stats from: #{mhost['hostname']} [skipping]"
+        log "Error getting MySQL stats from: #{mhost['hostname']} [skipping]"
         next
       end
 
@@ -405,141 +355,76 @@ def monitor_mysql(mysql_servers, group_name, apikey)
 
       mysql.close
 
-      rm.store_sample(group_name, mhost["name"], Time.now.to_i, metrics)
-    
+      CopperEgg::MetricSample.save(group_name, mhost["name"], Time.now.to_i, metrics)
     end
     interruptible_sleep @freq
   end
 end
 
-def create_mysql_metric_group(group_name, group_label, apikey)
-  ce_metrics = CopperEgg::Metrics.new(apikey, @apihost)
+def ensure_mysql_metric_group(metric_group, group_name, group_label)
+  if metric_group.nil? || !metric_group.is_a?(CopperEgg::MetricGroup)
+    log "Creating MySQL metric group"
+    metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+  else
+    log "Updating MySQL metric group"
+    metric_group.frequency = @freq
+  end
 
-  # no metric group found - create one
-  puts "Creating MySQL metric group"
-
-  groupcfg = {}
-  groupcfg["name"] = group_name
-  groupcfg["label"] = group_label
-  groupcfg["frequency"] = @freq
-  groupcfg["metrics"] = [{"type"=>"ce_gauge",   "name"=>"Threads_connected",            "unit"=>"Threads"},
-                         {"type"=>"ce_counter", "name"=>"Created_tmp_disk_tables",      "unit"=>"Tables"},
-                         {"type"=>"ce_gauge",   "name"=>"Handler_read_first",           "unit"=>"Reads"},
-                         {"type"=>"ce_gauge",   "name"=>"Innodb_buffer_pool_wait_free"},
-                         {"type"=>"ce_gauge",   "name"=>"Innodb_log_waits",             "unit"=>"Waits"},
-                         {"type"=>"ce_counter", "name"=>"Innodb_data_read",             "unit"=>"Bytes"},
-                         {"type"=>"ce_counter", "name"=>"Innodb_data_written",          "unit"=>"Bytes"},
-                         {"type"=>"ce_gauge",   "name"=>"Innodb_data_pending_fsyncs",   "unit"=>"FSyncs"},
-                         {"type"=>"ce_gauge",   "name"=>"Innodb_data_pending_reads",    "unit"=>"Reads"},
-                         {"type"=>"ce_gauge",   "name"=>"Innodb_data_pending_writes",   "unit"=>"Writes"},
-                         {"type"=>"ce_gauge",   "name"=>"Innodb_os_log_pending_fsyncs", "unit"=>"FSyncs"},
-                         {"type"=>"ce_gauge",   "name"=>"Innodb_os_log_pending_writes", "unit"=>"Writes"},
-                         {"type"=>"ce_counter", "name"=>"Innodb_os_log_written"},
-                         {"type"=>"ce_counter", "name"=>"Qcache_hits",                  "unit"=>"Hits"},
-                         {"type"=>"ce_counter", "name"=>"Qcache_lowmem_prunes",         "unit"=>"Prunes"},
-                         {"type"=>"ce_counter", "name"=>"Key_reads",                    "unit"=>"Reads"},
-                         {"type"=>"ce_counter", "name"=>"Key_writes",                   "unit"=>"Writes"},
-                         {"type"=>"ce_gauge",   "name"=>"Max_used_connections",         "unit"=>"Connections"},
-                         {"type"=>"ce_gauge",   "name"=>"Open_tables",                  "unit"=>"Tables"},
-                         {"type"=>"ce_gauge",   "name"=>"Open_files",                   "unit"=>"Files"},
-                         {"type"=>"ce_counter", "name"=>"Select_full_join"},
-                         {"type"=>"ce_counter", "name"=>"Uptime",                       "unit"=>"Seconds"},
-                         {"type"=>"ce_gauge",   "name"=>"Table_locks_immediate"},
-                         {"type"=>"ce_counter", "name"=>"Bytes_received",               "unit"=>"Bytes"},
-                         {"type"=>"ce_counter", "name"=>"Bytes_sent",                   "unit"=>"Bytes"},
-                         {"type"=>"ce_counter", "name"=>"Com_alter_db",                 "unit"=>"Commands"},
-                         {"type"=>"ce_counter", "name"=>"Com_create_db",                "unit"=>"Commands"},
-                         {"type"=>"ce_counter", "name"=>"Com_delete",                   "unit"=>"Commands"},
-                         {"type"=>"ce_counter", "name"=>"Com_drop_db",                  "unit"=>"Commands"},
-                         {"type"=>"ce_counter", "name"=>"Com_insert",                   "unit"=>"Commands"},
-                         {"type"=>"ce_counter", "name"=>"Com_select",                   "unit"=>"Commands"},
-                         {"type"=>"ce_counter", "name"=>"Com_update",                   "unit"=>"Commands"},
-                         {"type"=>"ce_counter", "name"=>"Queries",                      "unit"=>"Queries"},
-                         {"type"=>"ce_counter", "name"=>"Slow_queries",                 "unit"=>"Slow Queries"}
-                       ]
-
-  res = ce_metrics.create_metric_group(group_name, groupcfg)
+  metric_group.metrics = []
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Threads_connected",            :unit => "Threads"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Created_tmp_disk_tables",      :unit => "Tables"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Handler_read_first",           :unit => "Reads"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_buffer_pool_wait_free"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_log_waits",             :unit => "Waits"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Innodb_data_read",             :unit => "Bytes"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Innodb_data_written",          :unit => "Bytes"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_data_pending_fsyncs",   :unit => "FSyncs"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_data_pending_reads",    :unit => "Reads"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_data_pending_writes",   :unit => "Writes"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_os_log_pending_fsyncs", :unit => "FSyncs"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_os_log_pending_writes", :unit => "Writes"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Innodb_os_log_written"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Qcache_hits",                  :unit => "Hits"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Qcache_lowmem_prunes",         :unit => "Prunes"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Key_reads",                    :unit => "Reads"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Key_writes",                   :unit => "Writes"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Max_used_connections",         :unit => "Connections"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Open_tables",                  :unit => "Tables"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Open_files",                   :unit => "Files"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Select_full_join"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Uptime",                       :unit => "Seconds"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "Table_locks_immediate"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Bytes_received",               :unit => "Bytes"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Bytes_sent",                   :unit => "Bytes"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Com_alter_db",                 :unit => "Commands"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Com_create_db",                :unit => "Commands"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Com_delete",                   :unit => "Commands"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Com_drop_db",                  :unit => "Commands"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Com_insert",                   :unit => "Commands"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Com_select",                   :unit => "Commands"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Com_update",                   :unit => "Commands"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Queries",                      :unit => "Queries"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Slow_queries",                 :unit => "Slow Queries"}
+  metric_group.save
+  metric_group
 end
 
-def create_mysql_dashboard(group_name, dashboard, server_list, apikey)
-  servers = []
-  server_list.each do |server_entry|
-    servers.push server_entry["name"]
-  end
+def create_mysql_dashboard(metric_group, name, server_list)
+  log "Creating new MySQL/RDS Dashboard"
+  servers = server_list.map {|server_entry| server_entry["name"]}
+  metrics = %w(Created_tmp_disk_tables Qcache_hits Threads_connected Slow_queries Queries Open_tables Bytes_received Bytes_sent)
 
-  puts "Creating new MySQL/RDS Dashboard"
-  ce_metrics = CopperEgg::Metrics.new(apikey, @apihost)
-
-  # Configure a dashboard:
-  dashcfg = {}
-  dashcfg["name"] = dashboard
-  dashcfg["data"] = {}
-
-  widgets = {}
-  widget_cnt = 0
-
-  servers.each do |server|
-    # Create a widget  
-    widgetcfg = {}
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "32", "Queries"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "33", "Slow_queries"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "18", "Open_tables"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "23", "Bytes_received"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "24", "Bytes_sent"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-  end
-
-  # Add the widgets to the dashboard:
-  dashcfg["data"]["widgets"] = widgets
-
-  # Set the order we want on the dashboard:
-  dashcfg["data"]["order"] = widgets.keys
-
-  # Create the dashboard:
-  res = ce_metrics.create_dashboard(dashcfg)
+  # Create a dashboard for all identifiers:
+  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
+  # Create a dashboard for only the servers we've defined:
+  #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
 
 ####################################################################
 
-def monitor_apache(apache_servers, group_name, apikey)
-
-  puts "Monitoring Apache: "
+def monitor_apache(apache_servers, group_name)
+  log "Monitoring Apache: "
   return if @interrupted
-
-  rm = CopperEgg::Metrics.new(apikey, @apihost)
 
   while !@interupted do
     return if @interrupted
@@ -557,7 +442,7 @@ def monitor_apache(apache_servers, group_name, apikey)
         astats = response.body.split(/\r*\n/)
 
       rescue Exception => e
-        puts "Error getting stats from: #{ahost['url']} [skipping]"
+        log "Error getting Apache stats from: #{ahost['url']} [skipping]"
         next
       end
 
@@ -578,125 +463,67 @@ def monitor_apache(apache_servers, group_name, apikey)
       metrics["bytes_per_request"]            = ainfo["BytesPerReq"].to_f
       metrics["busy_workers"]                 = ainfo["BusyWorkers"].to_i
       metrics["idle_workers"]                 = ainfo["IdleWorkers"].to_i
-      metrics["connections_total"]            = ainfo["ConnsTotal"].to_i
-      metrics["connections_async_writing"]    = ainfo["ConnsAsyncWriting"].to_i
-      metrics["connections_async_keepalive"]  = ainfo["ConnsAsyncKeepAlive"].to_i
-      metrics["connections_async_closing"]    = ainfo["ConnsAsyncClosing"].to_i
 
-      rm.store_sample(group_name, ahost["name"], Time.now.to_i, metrics)
-    
+      # Uncomment these lines if you are using apache 2.4+
+      #metrics["connections_total"]            = ainfo["ConnsTotal"].to_i
+      #metrics["connections_async_writing"]    = ainfo["ConnsAsyncWriting"].to_i
+      #metrics["connections_async_keepalive"]  = ainfo["ConnsAsyncKeepAlive"].to_i
+      #metrics["connections_async_closing"]    = ainfo["ConnsAsyncClosing"].to_i
+      # End apache 2.4+ metrics
+
+      CopperEgg::MetricSample.save(group_name, ahost["name"], Time.now.to_i, metrics)
     end
     interruptible_sleep @freq
   end
 end
 
-def create_apache_metric_group(group_name, group_label, apikey)
-  ce_metrics = CopperEgg::Metrics.new(apikey, @apihost)
+def ensure_apache_metric_group(metric_group, group_name, group_label)
+  if metric_group.nil? || !metric_group.is_a?(CopperEgg::MetricGroup)
+    log "Creating Apache metric group"
+    metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+  else
+    log "Updating Apache metric group"
+    metric_group.frequency = @freq
+  end
 
-  # no metric group found - create one
-  puts "Creating Apache metric group"
+  metric_group.metrics = []
+  metric_group.metrics << {:type => "ce_counter", :name => "total_accesses",              :unit => "Accesses"}
+  metric_group.metrics << {:type => "ce_counter", :name => "total_kbytes",                :unit => "kBytes"}
+  metric_group.metrics << {:type => "ce_gauge_f", :name => "cpu_load",                    :unit => "Percent"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "uptime",                      :unit => "Seconds"}
+  metric_group.metrics << {:type => "ce_gauge_f", :name => "request_per_sec",             :unit => "Req/s"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "bytes_per_sec",               :unit => "Bytes/s"}
+  metric_group.metrics << {:type => "ce_gauge_f", :name => "bytes_per_request",           :unit => "Bytes/Req"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "busy_workers",                :unit => "Busy Workers"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "idle_workers",                :unit => "Idle Workers"}
 
-  groupcfg = {}
-  groupcfg["name"] = group_name
-  groupcfg["label"] = group_label
-  groupcfg["frequency"] = @freq
-  groupcfg["metrics"] = [{"type"=>"ce_gauge",   "name"=>"total_accesses",             "unit"=>"Accesses"},
-                         {"type"=>"ce_gauge",   "name"=>"total_kbytes",               "unit"=>"kBytes"},
-                         {"type"=>"ce_gauge_f", "name"=>"cpu_load",                   "unit"=>"Percent"},
-                         {"type"=>"ce_gauge",   "name"=>"uptime",                     "unit"=>"Seconds"},
-                         {"type"=>"ce_gauge_f", "name"=>"request_per_sec",            "unit"=>"Req/s"},
-                         {"type"=>"ce_gauge",   "name"=>"bytes_per_sec",              "unit"=>"Bytes/s"},
-                         {"type"=>"ce_gauge_f", "name"=>"bytes_per_request",          "unit"=>"Bytes/Req"},
-                         {"type"=>"ce_gauge",   "name"=>"busy_workers",               "unit"=>"Busy Workers"},
-                         {"type"=>"ce_gauge",   "name"=>"idle_workers",               "unit"=>"Idle Workers"},
-                         {"type"=>"ce_gauge",   "name"=>"connections_total",          "unit"=>"Connections"},
-                         {"type"=>"ce_gauge",   "name"=>"connections_async_writing",  "unit"=>"Connections"},
-                         {"type"=>"ce_gauge",   "name"=>"connections_async_keepalive","unit"=>"Connections"},
-                         {"type"=>"ce_gauge",   "name"=>"connections_async_closing",  "unit"=>"Connections"}
-                       ]
+  # Uncomment these lines if you are using apache 2.4+
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "connections_total",           :unit => "Connections"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "connections_async_writing",   :unit => "Connections"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "connections_async_keepalive", :unit => "Connections"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "connections_async_closing",   :unit => "Connections"}
+  # End apache 2.4+ metrics
 
-  res = ce_metrics.create_metric_group(group_name, groupcfg)
+  metric_group.save
+  metric_group
 end
 
-def create_apache_dashboard(group_name, dashboard, server_list, apikey)
-  servers = []
-  server_list.each do |server_entry|
-    servers.push server_entry["name"]
-  end
+def create_apache_dashboard(metric_group, name, server_list)
+  log "Creating new Apache Dashboard"
+  servers = server_list.map {|server_entry| server_entry["name"]}
+  metrics = %w(idle_workers busy_workers bytes_per_request bytes_per_sec request_per_sec total_kbytes total_accesses)
 
-  puts "Creating new Apache Dashboard"
-  ce_metrics = CopperEgg::Metrics.new(apikey, @apihost)
-
-  # Configure a dashboard:
-  dashcfg = {}
-  dashcfg["name"] = dashboard
-  dashcfg["data"] = {}
-
-  widgets = {}
-  widget_cnt = 0
-
-  servers.each do |server|
-    # Create a widget  
-    widgetcfg = {}
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "0", "total_accesses"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "4", "request_per_sec"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "7", "busy_workers"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "9", "connections_total"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "8", "idle_workers"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-  end
-
-  # Add the widgets to the dashboard:
-  dashcfg["data"]["widgets"] = widgets
-
-  # Set the order we want on the dashboard:
-  dashcfg["data"]["order"] = widgets.keys
-
-  # Create the dashboard:
-  res = ce_metrics.create_dashboard(dashcfg)
+  # Create a dashboard for all identifiers:
+  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
+  # Create a dashboard for only the servers we've defined:
+  #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
 
 ####################################################################
 
-def monitor_nginx(nginx_servers, group_name, apikey)
-
-  puts "Monitoring Nginx: "
+def monitor_nginx(nginx_servers, group_name)
+  log "Monitoring Nginx: "
   return if @interrupted
-
-  rm = CopperEgg::Metrics.new(apikey, @apihost)
 
   while !@interupted do
     return if @interrupted
@@ -714,117 +541,55 @@ def monitor_nginx(nginx_servers, group_name, apikey)
         nstats = response.body.split(/\r*\n/)
 
       rescue Exception => e
-        puts "Error getting stats from: #{nhost['url']} [skipping]"
+        log "Error getting Nginx stats from: #{nhost['url']} [skipping]"
         next
       end
 
       metrics = {}
-      metrics["active_connections"]           = nstats[0].split(": ")[1].to_i
-      metrics["connections_accepts"]          = nstats[2].split(/\s+/)[0].to_i
-      metrics["connections_handled"]          = nstats[2].split(/\s+/)[1].to_i
-      metrics["connections_requested"]        = nstats[2].split(/\s+/)[2].to_i
-      metrics["reading"]                      = nstats[3].split(/\s+/)[1].to_i
-      metrics["writing"]                      = nstats[3].split(/\s+/)[3].to_i
-      metrics["waiting"]                      = nstats[3].split(/\s+/)[5].to_i
+      metrics["active_connections"]    = nstats[0].split(": ")[1].to_i
+      metrics["connections_accepts"]   = nstats[2].lstrip.split(/\s+/)[0].to_i
+      metrics["connections_handled"]   = nstats[2].lstrip.split(/\s+/)[1].to_i
+      metrics["connections_requested"] = nstats[2].lstrip.split(/\s+/)[2].to_i
+      metrics["reading"]               = nstats[3].lstrip.split(/\s+/)[1].to_i
+      metrics["writing"]               = nstats[3].lstrip.split(/\s+/)[3].to_i
+      metrics["waiting"]               = nstats[3].lstrip.split(/\s+/)[5].to_i
 
-      rm.store_sample(group_name, nhost["name"], Time.now.to_i, metrics)
-    
+      CopperEgg::MetricSample.save(group_name, nhost["name"], Time.now.to_i, metrics)
     end
     interruptible_sleep @freq
   end
 end
 
-def create_nginx_metric_group(group_name, group_label, apikey)
-  ce_metrics = CopperEgg::Metrics.new(apikey, @apihost)
+def ensure_nginx_metric_group(metric_group, group_name, group_label)
+  if metric_group.nil? || !metric_group.is_a?(CopperEgg::MetricGroup)
+    log "Creating Nginx metric group"
+    metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+  else
+    log "Updating Nginx metric group"
+    metric_group.frequency = @freq
+  end
 
-  # no metric group found - create one
-  puts "Creating Nginx metric group"
-
-  groupcfg = {}
-  groupcfg["name"] = group_name
-  groupcfg["label"] = group_label
-  groupcfg["frequency"] = @freq
-  groupcfg["metrics"] = [{"type"=>"ce_gauge",   "name"=>"active_connections",     "unit"=>"Connections"},
-                         {"type"=>"ce_gauge",   "name"=>"connections_accepts",    "unit"=>"Connections"},
-                         {"type"=>"ce_gauge",   "name"=>"connections_handled",    "unit"=>"Connections"},
-                         {"type"=>"ce_gauge",   "name"=>"connections_requested",  "unit"=>"Connections"},
-                         {"type"=>"ce_gauge",   "name"=>"reading",                "unit"=>"Connections"},
-                         {"type"=>"ce_gauge",   "name"=>"writing",                "unit"=>"Connections"},
-                         {"type"=>"ce_gauge",   "name"=>"waiting",                "unit"=>"Connections"}
-                       ]
-
-  res = ce_metrics.create_metric_group(group_name, groupcfg)
+  metric_group.metrics = []
+  metric_group.metrics << {:type => "ce_gauge",   :name => "active_connections",     :unit => "Connections"}
+  metric_group.metrics << {:type => "ce_counter", :name => "connections_accepts",    :unit => "Connections"}
+  metric_group.metrics << {:type => "ce_counter", :name => "connections_handled",    :unit => "Connections"}
+  metric_group.metrics << {:type => "ce_counter", :name => "connections_requested",  :unit => "Connections"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "reading",                :unit => "Connections"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "writing",                :unit => "Connections"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "waiting",                :unit => "Connections"}
+  metric_group.save
+  metric_group
 end
 
-def create_nginx_dashboard(group_name, dashboard, server_list, apikey)
-  servers = []
-  server_list.each do |server_entry|
-    servers.push server_entry["name"]
-  end
+def create_nginx_dashboard(metric_group, name, server_list)
+  log "Creating new Nginx Dashboard"
+  servers = server_list.map {|server_entry| server_entry["name"]}
+  metrics = %w(waiting writing reading connections_requested connections_handled connections_accepts active_connections )
 
-  puts "Creating new Nginx Dashboard"
-  ce_metrics = CopperEgg::Metrics.new(apikey, @apihost)
-
-  # Configure a dashboard:
-  dashcfg = {}
-  dashcfg["name"] = dashboard
-  dashcfg["data"] = {}
-
-  widgets = {}
-  widget_cnt = 0
-
-  servers.each do |server|
-    # Create a widget  
-    widgetcfg = {}
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "0", "active_connections"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "1", "connections_accepts"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "2", "connections_handled"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "4", "reading"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-
-    widgetcfg["type"] = "metric"
-    widgetcfg["style"] = "both"
-    widgetcfg["metric"] = [group_name, "5", "writing"]
-    widgetcfg["match"] = "select"
-    widgetcfg["match_param"] = server
-    widgets["#{widget_cnt}"] = widgetcfg.dup
-    widget_cnt += 1
-  end
-
-  # Add the widgets to the dashboard:
-  dashcfg["data"]["widgets"] = widgets
-
-  # Set the order we want on the dashboard:
-  dashcfg["data"]["order"] = widgets.keys
-
-  # Create the dashboard:
-  res = ce_metrics.create_dashboard(dashcfg)
+  # Create a dashboard for all identifiers:
+  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
+  # Create a dashboard for only the servers we've defined:
+  #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
 
 ####################################################################
@@ -833,79 +598,75 @@ end
 trap("INT") { parent_interrupt }
 trap("TERM") { parent_interrupt }
 
+#################################
+
+def ensure_metric_group(metric_group, service)
+  if service == "redis"
+    return ensure_redis_metric_group(metric_group, @config[service]["group_name"], @config[service]["group_label"])
+  elsif service == "mysql"
+    return ensure_mysql_metric_group(metric_group, @config[service]["group_name"], @config[service]["group_label"])
+  elsif service == "apache"
+    return ensure_apache_metric_group(metric_group, @config[service]["group_name"], @config[service]["group_label"])
+  elsif service == "nginx"
+    return ensure_nginx_metric_group(metric_group, @config[service]["group_name"], @config[service]["group_label"])
+  else
+    raise CopperEggAgentError.new("Service #{service} not recognized")
+  end
+end
+
+def create_dashboard(service, metric_group)
+  if service == "redis"
+    create_redis_dashboard(metric_group, @config[service]["dashboard"], @config[service]["servers"])
+  elsif service == "mysql"
+    create_mysql_dashboard(metric_group, @config[service]["dashboard"], @config[service]["servers"])
+  elsif service == "apache"
+    create_apache_dashboard(metric_group, @config[service]["dashboard"], @config[service]["servers"])
+  elsif service == "nginx"
+    create_nginx_dashboard(metric_group, @config[service]["dashboard"], @config[service]["servers"])
+  else
+    raise CopperEggAgentError.new("Service #{service} not recognized")
+  end
+end
+
+def monitor_service(service, metric_group)
+  if service == "redis"
+    monitor_redis(@config[service]["servers"], metric_group.name)
+  elsif service == "mysql"
+    monitor_mysql(@config[service]["servers"], metric_group.name)
+  elsif service == "apache"
+    monitor_apache(@config[service]["servers"], metric_group.name)
+  elsif service == "nginx"
+    monitor_nginx(@config[service]["servers"], metric_group.name)
+  else
+    raise CopperEggAgentError.new("Service #{service} not recognized")
+  end
+end
 
 #################################
 
-def create_metric_group(service, apikey)
-if service == "redis"
-    create_redis_metric_group(@config[service]["group_name"], @config[service]["group_label"], apikey)
-  elsif service == "mysql"
-    create_mysql_metric_group(@config[service]["group_name"], @config[service]["group_label"], apikey)
-  elsif service == "apache"
-    create_apache_metric_group(@config[service]["group_name"], @config[service]["group_label"], apikey)
-  elsif service == "nginx"
-    create_nginx_metric_group(@config[service]["group_name"], @config[service]["group_label"], apikey)
-  else
-    puts "Service #{service} not recognized"
-  end
-end
+dashboards = CopperEgg::CustomDashboard.find
+metric_groups = CopperEgg::MetricGroup.find
 
-def create_dashboard(service, apikey)
-  if service == "redis"
-    create_redis_dashboard(@config[service]["group_name"], @config[service]["dashboard"], @config[service]["servers"], apikey)
-  elsif service == "mysql"
-    create_mysql_dashboard(@config[service]["group_name"], @config[service]["dashboard"], @config[service]["servers"], apikey)
-  elsif service == "apache"
-    create_apache_dashboard(@config[service]["group_name"], @config[service]["dashboard"], @config[service]["servers"], apikey)
-  elsif service == "nginx"
-    create_nginx_dashboard(@config[service]["group_name"], @config[service]["dashboard"], @config[service]["servers"], apikey)
-  else
-    puts "Service #{service} not recognized"
-  end
-end
-
-def monitor_service(service, apikey)
-  if service == "redis"
-    monitor_redis(@config[service]["servers"], @config[service]["group_name"], apikey)
-  elsif service == "mysql"
-    monitor_mysql(@config[service]["servers"], @config[service]["group_name"], apikey)
-  elsif service == "apache"
-    monitor_apache(@config[service]["servers"], @config[service]["group_name"], apikey)
-  elsif service == "nginx"
-    monitor_nginx(@config[service]["servers"], @config[service]["group_name"], apikey)
-  else
-    puts "Service #{service} not recognized"
-  end
-end
-
-#################################
 @services.each do |service|
   if @config[service] && @config[service]["servers"].length > 0
+    begin
+      log "Checking for existence of metric group for #{service}"
+      metric_group = metric_groups.detect {|m| m.name == @config[service]["group_name"]}
+      metric_group = ensure_metric_group(metric_group, service)
+      raise "Could not create a metric group for #{service}" if metric_group.nil?
 
-    # metric group check
-    puts "Checking for existence of metric group for #{service}"
-    ce_metrics = CopperEgg::Metrics.new(apikey, @apihost)
-    mgroup = ce_metrics.metric_group(@config[service]["group_name"])
-
-    if mgroup.nil?
-      # no metric group found - create one
-      create_metric_group(service, apikey)
+      log "Checking for existence of #{service} Dashboard"
+      dashboard = dashboards.detect {|d| d.name == @config[service]["dashboard"]} || create_dashboard(service, metric_group)
+      log "Could not create a dashboard for #{service}" if dashboard.nil?
+    rescue => e
+      log e.message
+      next
     end
-
-    # Check for dashboard:
-    puts "Checking for existence of #{service} Dashboard"
-    dashboard = ce_metrics.dashboard(@config[service]["dashboard"])
-
-    if dashboard.nil?
-      # no dashboard found - create one
-      create_dashboard(service, apikey)
-    end
-
     child_pid = fork {
       trap("INT") { child_interrupt if !@interrupted }
       trap("TERM") { child_interrupt if !@interrupted }
 
-      monitor_service(service, apikey)
+      monitor_service(service, metric_group)
     }
     @worker_pids.push child_pid
   end
