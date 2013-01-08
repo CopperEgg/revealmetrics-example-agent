@@ -180,7 +180,7 @@ def monitor_redis(redis_servers, group_name)
         redis = connect_to_redis(redis_uri)
         rinfo = redis.info()
       rescue Exception => e
-        log "Error getting stats from: #{label} [skipping]"
+        log "Error getting Redis stats from: #{label} [skipping]"
         next
       end
 
@@ -205,8 +205,8 @@ def monitor_redis(redis_servers, group_name)
       metrics["pubsub_channels"]              = rinfo["pubsub_channels"].to_i
       metrics["pubsub_patterns"]              = rinfo["pubsub_patterns"].to_i
       metrics["latest_fork_usec"]             = rinfo["latest_fork_usec"].to_i
-      metrics["keys"]                         = rinfo["db0"].split(',')[0].split('=')[1].to_i
-      metrics["expires"]                      = rinfo["db0"].split(',')[1].split('=')[1].to_i
+      metrics["keys"]                         = (rinfo["db0"] ? rinfo["db0"].split(',')[0].split('=')[1].to_i : 0)
+      metrics["expires"]                      = (rinfo["db0"] ? rinfo["db0"].split(',')[1].split('=')[1].to_i : 0)
 
       # Uncomment these lines if you are using Redis 2.6:
       #if !rinfo["redis_version"].match("2.4")
@@ -225,10 +225,16 @@ def monitor_redis(redis_servers, group_name)
   end
 end
 
-def create_redis_metric_group(group_name, group_label)
-  log "Creating Redis metric group"
+def ensure_redis_metric_group(metric_group, group_name, group_label)
+  if metric_group.nil? || !metric_group.is_a?(CopperEgg::MetricGroup)
+    log "Creating Redis metric group"
+    metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+  else
+    log "Updating Redis metric group"
+    metric_group.frequency = @freq
+  end
 
-  metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+  metric_group.metrics = []
   metric_group.metrics << {:type => "ce_counter", :name => "uptime",                     :unit => "Seconds"}
   metric_group.metrics << {:type => "ce_gauge_f", :name => "used_cpu_sys",               :unit => "Percent"}
   metric_group.metrics << {:type => "ce_gauge_f", :name => "used_cpu_user",              :unit => "Percent"}
@@ -301,7 +307,7 @@ def monitor_mysql(mysql_servers, group_name)
         mstats = mysql.query('SHOW GLOBAL STATUS;')
 
       rescue Exception => e
-        log "Error getting stats from: #{mhost['hostname']} [skipping]"
+        log "Error getting MySQL stats from: #{mhost['hostname']} [skipping]"
         next
       end
 
@@ -355,10 +361,16 @@ def monitor_mysql(mysql_servers, group_name)
   end
 end
 
-def create_mysql_metric_group(group_name, group_label)
-  log "Creating MySQL metric group"
+def ensure_mysql_metric_group(metric_group, group_name, group_label)
+  if metric_group.nil? || !metric_group.is_a?(CopperEgg::MetricGroup)
+    log "Creating MySQL metric group"
+    metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+  else
+    log "Updating MySQL metric group"
+    metric_group.frequency = @freq
+  end
 
-  metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+  metric_group.metrics = []
   metric_group.metrics << {:type => "ce_gauge",   :name => "Threads_connected",            :unit => "Threads"}
   metric_group.metrics << {:type => "ce_counter", :name => "Created_tmp_disk_tables",      :unit => "Tables"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "Handler_read_first",           :unit => "Reads"}
@@ -430,7 +442,7 @@ def monitor_apache(apache_servers, group_name)
         astats = response.body.split(/\r*\n/)
 
       rescue Exception => e
-        log "Error getting stats from: #{ahost['url']} [skipping]"
+        log "Error getting Apache stats from: #{ahost['url']} [skipping]"
         next
       end
 
@@ -465,10 +477,16 @@ def monitor_apache(apache_servers, group_name)
   end
 end
 
-def create_apache_metric_group(group_name, group_label)
-  log "Creating Apache metric group"
+def ensure_apache_metric_group(metric_group, group_name, group_label)
+  if metric_group.nil? || !metric_group.is_a?(CopperEgg::MetricGroup)
+    log "Creating Apache metric group"
+    metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+  else
+    log "Updating Apache metric group"
+    metric_group.frequency = @freq
+  end
 
-  metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+  metric_group.metrics = []
   metric_group.metrics << {:type => "ce_counter", :name => "total_accesses",              :unit => "Accesses"}
   metric_group.metrics << {:type => "ce_counter", :name => "total_kbytes",                :unit => "kBytes"}
   metric_group.metrics << {:type => "ce_gauge_f", :name => "cpu_load",                    :unit => "Percent"}
@@ -523,18 +541,18 @@ def monitor_nginx(nginx_servers, group_name)
         nstats = response.body.split(/\r*\n/)
 
       rescue Exception => e
-        log "Error getting stats from: #{nhost['url']} [skipping]"
+        log "Error getting Nginx stats from: #{nhost['url']} [skipping]"
         next
       end
 
       metrics = {}
       metrics["active_connections"]    = nstats[0].split(": ")[1].to_i
-      metrics["connections_accepts"]   = nstats[2].split(/\s+/)[0].to_i
-      metrics["connections_handled"]   = nstats[2].split(/\s+/)[1].to_i
-      metrics["connections_requested"] = nstats[2].split(/\s+/)[2].to_i
-      metrics["reading"]               = nstats[3].split(/\s+/)[1].to_i
-      metrics["writing"]               = nstats[3].split(/\s+/)[3].to_i
-      metrics["waiting"]               = nstats[3].split(/\s+/)[5].to_i
+      metrics["connections_accepts"]   = nstats[2].lstrip.split(/\s+/)[0].to_i
+      metrics["connections_handled"]   = nstats[2].lstrip.split(/\s+/)[1].to_i
+      metrics["connections_requested"] = nstats[2].lstrip.split(/\s+/)[2].to_i
+      metrics["reading"]               = nstats[3].lstrip.split(/\s+/)[1].to_i
+      metrics["writing"]               = nstats[3].lstrip.split(/\s+/)[3].to_i
+      metrics["waiting"]               = nstats[3].lstrip.split(/\s+/)[5].to_i
 
       CopperEgg::MetricSample.save(group_name, nhost["name"], Time.now.to_i, metrics)
     end
@@ -542,10 +560,16 @@ def monitor_nginx(nginx_servers, group_name)
   end
 end
 
-def create_nginx_metric_group(group_name, group_label)
-  log "Creating Nginx metric group"
+def ensure_nginx_metric_group(metric_group, group_name, group_label)
+  if metric_group.nil? || !metric_group.is_a?(CopperEgg::MetricGroup)
+    log "Creating Nginx metric group"
+    metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+  else
+    log "Updating Nginx metric group"
+    metric_group.frequency = @freq
+  end
 
-  metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+  metric_group.metrics = []
   metric_group.metrics << {:type => "ce_gauge",   :name => "active_connections",     :unit => "Connections"}
   metric_group.metrics << {:type => "ce_counter", :name => "connections_accepts",    :unit => "Connections"}
   metric_group.metrics << {:type => "ce_counter", :name => "connections_handled",    :unit => "Connections"}
@@ -576,15 +600,15 @@ trap("TERM") { parent_interrupt }
 
 #################################
 
-def create_metric_group(service)
+def ensure_metric_group(metric_group, service)
   if service == "redis"
-    return create_redis_metric_group(@config[service]["group_name"], @config[service]["group_label"])
+    return ensure_redis_metric_group(metric_group, @config[service]["group_name"], @config[service]["group_label"])
   elsif service == "mysql"
-    return create_mysql_metric_group(@config[service]["group_name"], @config[service]["group_label"])
+    return ensure_mysql_metric_group(metric_group, @config[service]["group_name"], @config[service]["group_label"])
   elsif service == "apache"
-    return create_apache_metric_group(@config[service]["group_name"], @config[service]["group_label"])
+    return ensure_apache_metric_group(metric_group, @config[service]["group_name"], @config[service]["group_label"])
   elsif service == "nginx"
-    return create_nginx_metric_group(@config[service]["group_name"], @config[service]["group_label"])
+    return ensure_nginx_metric_group(metric_group, @config[service]["group_name"], @config[service]["group_label"])
   else
     raise CopperEggAgentError.new("Service #{service} not recognized")
   end
@@ -627,7 +651,8 @@ metric_groups = CopperEgg::MetricGroup.find
   if @config[service] && @config[service]["servers"].length > 0
     begin
       log "Checking for existence of metric group for #{service}"
-      metric_group = metric_groups.detect {|m| m.name == @config[service]["group_name"]} || create_metric_group(service)
+      metric_group = metric_groups.detect {|m| m.name == @config[service]["group_name"]}
+      metric_group = ensure_metric_group(metric_group, service)
       raise "Could not create a metric group for #{service}" if metric_group.nil?
 
       log "Checking for existence of #{service} Dashboard"
