@@ -132,7 +132,7 @@ if @config['apache']['logformat']
   require 'request_log_analyzer'
 
   @apache_log_format = '%h %l %u %t "%r" %>s %b %D'
-  @apache_log_format = @config['apache']['logformat'] if !@config['apache']['logformat'].blank?
+  @apache_log_format = @config['apache']['logformat'] if !@config['apache']['logformat'].empty?
 
   @apache_line_def = RequestLogAnalyzer::FileFormat::Apache.access_line_definition(@apache_log_format)
   @apache_log_request = RequestLogAnalyzer::FileFormat::Apache.new.request
