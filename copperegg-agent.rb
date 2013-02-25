@@ -150,6 +150,9 @@ if @services.length == 0
   exit
 end
 
+@freq = 60 if ![5, 15, 60, 300, 900, 3600, 21600].include?(@freq)
+log "Update frequency set to #{@freq}s."
+
 ####################################################################
 
 def connect_to_redis(uri, attempts=10)
@@ -501,6 +504,7 @@ def monitor_apache(apache_servers, group_name)
         end
 
         avg_duration = tot_duration.to_f / tot_reqs.to_f
+        avg_duration = 0.0 if avg_duration.nan? || avg_duration.infinite?
         p "tot_duration = #{tot_duration}; tot_reqs = #{tot_reqs}; avg_duration = #{avg_duration}" if @debug
       end
 
@@ -706,8 +710,18 @@ end
 
 #################################
 
-dashboards = CopperEgg::CustomDashboard.find
-metric_groups = CopperEgg::MetricGroup.find
+retries = 30
+begin
+  dashboards = CopperEgg::CustomDashboard.find
+  metric_groups = CopperEgg::MetricGroup.find
+rescue => e
+  log "Error connecting to server.  Retying (#{retries}) more times..."
+  raise e if @debug
+  sleep 2
+  retries -= 1
+  retry if retries > 0
+  raise e
+end
 
 @services.each do |service|
   if @config[service] && @config[service]["servers"].length > 0
@@ -728,7 +742,17 @@ metric_groups = CopperEgg::MetricGroup.find
       trap("INT") { child_interrupt if !@interrupted }
       trap("TERM") { child_interrupt if !@interrupted }
 
-      monitor_service(service, metric_group)
+      retries = 30
+      begin
+        monitor_service(service, metric_group)
+      rescue => e
+        log "Error monitoring #{service}.  Retying (#{retries}) more times..."
+        raise e if @debug
+        sleep 2
+        retries -= 1
+        retry if retries > 0
+        raise e
+      end
     }
     @worker_pids.push child_pid
   end
