@@ -74,6 +74,7 @@ end
 opts = GetoptLong.new(
   ['--help',      '-h', GetoptLong::NO_ARGUMENT],
   ['--debug',     '-d', GetoptLong::NO_ARGUMENT],
+  ['--verbose',   '-v', GetoptLong::NO_ARGUMENT],
   ['--config',    '-c', GetoptLong::REQUIRED_ARGUMENT],
   ['--apikey',    '-k', GetoptLong::REQUIRED_ARGUMENT],
   ['--frequency', '-f', GetoptLong::REQUIRED_ARGUMENT],
@@ -82,7 +83,8 @@ opts = GetoptLong.new(
 
 config_file = "config.yml"
 @apihost = nil
-@debug = 0
+@debug = false
+@verbose = false
 @freq = 60  # update frequency in seconds
 @interupted = false
 @worker_pids = []
@@ -96,6 +98,8 @@ opts.each do |opt, arg|
     exit
   when '--debug'
     @debug = true
+  when '--verbose'
+    @verbose = true
   when '--config'
     config_file = arg
   when '--apikey'
@@ -124,6 +128,17 @@ if !@config.nil?
   end
 end
 
+if @config['apache'] && @config['apache']['logformat']
+  require 'request_log_analyzer'
+
+  @apache_log_format = '%h %l %u %t "%r" %>s %b %D'
+  @apache_log_format = @config['apache']['logformat'] if !@config['apache']['logformat'].empty?
+
+  @apache_line_def = RequestLogAnalyzer::FileFormat::Apache.access_line_definition(@apache_log_format)
+  @apache_log_request = RequestLogAnalyzer::FileFormat::Apache.new.request
+end
+
+
 if CopperEgg::Api.apikey.nil?
   log "You need to supply an apikey with the -k option or in the config.yml."
   exit
@@ -134,6 +149,9 @@ if @services.length == 0
   log "Nothing will be monitored!"
   exit
 end
+
+@freq = 60 if ![5, 15, 60, 300, 900, 3600, 21600].include?(@freq)
+log "Update frequency set to #{@freq}s."
 
 ####################################################################
 
@@ -219,6 +237,7 @@ def monitor_redis(redis_servers, group_name)
 
       redis.client.disconnect
 
+      puts "#{group_name} - #{label} - #{Time.now.to_i} - #{metrics.inspect}" if @verbose
       CopperEgg::MetricSample.save(group_name, label, Time.now.to_i, metrics)
     end
     interruptible_sleep @freq
@@ -355,6 +374,7 @@ def monitor_mysql(mysql_servers, group_name)
 
       mysql.close
 
+      puts "#{group_name} - #{mhost['name']} - #{Time.now.to_i} - #{metrics.inspect}" if @verbose
       CopperEgg::MetricSample.save(group_name, mhost["name"], Time.now.to_i, metrics)
     end
     interruptible_sleep @freq
@@ -453,6 +473,43 @@ def monitor_apache(apache_servers, group_name)
         ainfo[name] = value
       end
 
+      avg_duration = nil
+      apache_log_file = ahost['logfile']
+      if @config['apache']['logformat'] && apache_log_file
+        tot_duration = 0.0
+        tot_reqs = 0
+
+        # number of lines to read from the apache log.  It's possible we won't get all of them
+        # if there are more than 100 requests per second, but it's still a pretty big sample size
+        # that will yeild a close-enough number for all practical purposes
+        tail_cnt = @freq * 100
+
+        lines = `tail -n #{tail_cnt} #{apache_log_file}`
+        lines.each_line do |line|
+          #p line
+          matches = @apache_line_def.matches(line)
+          vals = @apache_line_def.convert_captured_values(matches[:captures], @apache_log_request) if matches
+          ts_s = vals[:timestamp].to_s if vals
+          next if ts_s.nil?
+
+          # convert ts_s from hideous format YYYYMMDDhhmmss to a real time
+          # and for whatever reason, RequestLogAnalyzer uses localtime, not gmt
+          ts = Time.local(ts_s[0..3].to_i, ts_s[4..5].to_i, ts_s[6..7].to_i, ts_s[8..9].to_i, ts_s[10..11].to_i, ts_s[12..13].to_i)
+          #p "ts=#{ts} now=#{Time.now}"
+          next if ts.to_i < (Time.now.to_i - @freq)
+          if vals[:duration]
+            tot_duration += vals[:duration].to_f
+            tot_reqs += 1
+          end
+        end
+
+        avg_duration = tot_duration.to_f / tot_reqs.to_f
+        avg_duration = 0.0 if avg_duration.nan? || avg_duration.infinite?
+        p "tot_duration = #{tot_duration}; tot_reqs = #{tot_reqs}; avg_duration = #{avg_duration}" if @debug
+      end
+
+
+
       metrics = {}
       metrics["total_accesses"]               = ainfo["Total Accesses"].to_i
       metrics["total_kbytes"]                 = ainfo["Total kBytes"].to_i
@@ -464,6 +521,8 @@ def monitor_apache(apache_servers, group_name)
       metrics["busy_workers"]                 = ainfo["BusyWorkers"].to_i
       metrics["idle_workers"]                 = ainfo["IdleWorkers"].to_i
 
+      metrics["avg_request_duration"]         = avg_duration.to_f if avg_duration
+
       # Uncomment these lines if you are using apache 2.4+
       #metrics["connections_total"]            = ainfo["ConnsTotal"].to_i
       #metrics["connections_async_writing"]    = ainfo["ConnsAsyncWriting"].to_i
@@ -471,6 +530,7 @@ def monitor_apache(apache_servers, group_name)
       #metrics["connections_async_closing"]    = ainfo["ConnsAsyncClosing"].to_i
       # End apache 2.4+ metrics
 
+      puts "#{group_name} - #{ahost['name']} - #{Time.now.to_i} - #{metrics.inspect}" if @verbose
       CopperEgg::MetricSample.save(group_name, ahost["name"], Time.now.to_i, metrics)
     end
     interruptible_sleep @freq
@@ -504,6 +564,10 @@ def ensure_apache_metric_group(metric_group, group_name, group_label)
   #metric_group.metrics << {:type => "ce_gauge",   :name => "connections_async_closing",   :unit => "Connections"}
   # End apache 2.4+ metrics
 
+  if @config['apache']['logformat']
+    metric_group.metrics << {:type => "ce_gauge_f", :name => "avg_request_duration",     :unit => "Seconds"}
+  end
+
   metric_group.save
   metric_group
 end
@@ -512,6 +576,7 @@ def create_apache_dashboard(metric_group, name, server_list)
   log "Creating new Apache Dashboard"
   servers = server_list.map {|server_entry| server_entry["name"]}
   metrics = %w(idle_workers busy_workers bytes_per_request bytes_per_sec request_per_sec total_kbytes total_accesses)
+  metrics << "avg_request_duration" if @config['apache']['logformat']
 
   # Create a dashboard for all identifiers:
   CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
@@ -554,6 +619,7 @@ def monitor_nginx(nginx_servers, group_name)
       metrics["writing"]               = nstats[3].lstrip.split(/\s+/)[3].to_i
       metrics["waiting"]               = nstats[3].lstrip.split(/\s+/)[5].to_i
 
+      puts "#{group_name} - #{nhost['name']} - #{Time.now.to_i} - #{metrics.inspect}" if @verbose
       CopperEgg::MetricSample.save(group_name, nhost["name"], Time.now.to_i, metrics)
     end
     interruptible_sleep @freq
@@ -644,8 +710,18 @@ end
 
 #################################
 
-dashboards = CopperEgg::CustomDashboard.find
-metric_groups = CopperEgg::MetricGroup.find
+retries = 30
+begin
+  dashboards = CopperEgg::CustomDashboard.find
+  metric_groups = CopperEgg::MetricGroup.find
+rescue => e
+  log "Error connecting to server.  Retying (#{retries}) more times..."
+  raise e if @debug
+  sleep 2
+  retries -= 1
+  retry if retries > 0
+  raise e
+end
 
 @services.each do |service|
   if @config[service] && @config[service]["servers"].length > 0
@@ -666,7 +742,17 @@ metric_groups = CopperEgg::MetricGroup.find
       trap("INT") { child_interrupt if !@interrupted }
       trap("TERM") { child_interrupt if !@interrupted }
 
-      monitor_service(service, metric_group)
+      retries = 30
+      begin
+        monitor_service(service, metric_group)
+      rescue => e
+        log "Error monitoring #{service}.  Retying (#{retries}) more times..."
+        raise e if @debug
+        sleep 2
+        retries -= 1
+        retry if retries > 0
+        raise e
+      end
     }
     @worker_pids.push child_pid
   end

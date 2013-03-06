@@ -39,10 +39,12 @@ apache:
   group_name: "apache-001"
   group_label: "Apache Metrics"
   dashboard: "Apache Dashboard"
+  logformat: "%h %l %u %t \"%r\" %>s %b %D"
   servers:
   -
     name: "apache"
     url: "http://www.apache.org"
+    logfile: "/var/log/apache2/access_log"
 nginx:
   group_name: "nginx-b-5"
   group_label: "Nginx Metrics"
