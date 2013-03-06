@@ -128,7 +128,7 @@ if !@config.nil?
   end
 end
 
-if @config['apache']['logformat']
+if @config['apache'] && @config['apache']['logformat']
   require 'request_log_analyzer'
 
   @apache_log_format = '%h %l %u %t "%r" %>s %b %D'
