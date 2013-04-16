@@ -291,7 +291,7 @@ end
 def create_redis_dashboard(metric_group, name, server_list)
   log "Creating new Redis Dashboard"
   servers = server_list.map { |server_entry| server_entry["name"] }
-  metrics = %w(keys total_connections_received connected_slaves blocked_clients connected_clients used_memory total_commands_processed)
+  metrics = metric_group.metrics || []
 
   # Create a dashboard for all identifiers:
   CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
@@ -339,38 +339,43 @@ def monitor_mysql(mysql_servers, group_name)
       metrics = {}
       metrics["Threads_connected"]            = minfo["Threads_connected"].to_i
       metrics["Created_tmp_disk_tables"]      = minfo["Created_tmp_disk_tables"].to_i
-      metrics["Handler_read_first"]           = minfo["Handler_read_first"].to_i
-      metrics["Innodb_buffer_pool_wait_free"] = minfo["Innodb_buffer_pool_wait_free"].to_i
-      metrics["Innodb_log_waits"]             = minfo["Innodb_log_waits"].to_i
-      metrics["Innodb_data_read"]             = minfo["Innodb_data_read"].to_i
-      metrics["Innodb_data_written"]          = minfo["Innodb_data_written"].to_i
-      metrics["Innodb_data_pending_fsyncs"]   = minfo["Innodb_data_pending_fsyncs"].to_i
-      metrics["Innodb_data_pending_reads"]    = minfo["Innodb_data_pending_reads"].to_i
-      metrics["Innodb_data_pending_writes"]   = minfo["Innodb_data_pending_writes"].to_i
-      metrics["Innodb_os_log_pending_fsyncs"] = minfo["Innodb_os_log_pending_fsyncs"].to_i
-      metrics["Innodb_os_log_pending_writes"] = minfo["Innodb_os_log_pending_writes"].to_i
-      metrics["Innodb_os_log_written"]        = minfo["Innodb_os_log_written"].to_i
       metrics["Qcache_hits"]                  = minfo["Qcache_hits"].to_i
-      metrics["Qcache_lowmem_prunes"]         = minfo["Qcache_lowmem_prunes"].to_i
-      metrics["Key_reads"]                    = minfo["Key_reads"].to_i
-      metrics["Key_writes"]                   = minfo["Key_writes"].to_i
-      metrics["Max_used_connections"]         = minfo["Max_used_connections"].to_i
-      metrics["Open_tables"]                  = minfo["Open_tables"].to_i
-      metrics["Open_files"]                   = minfo["Open_files"].to_i
-      metrics["Select_full_join"]             = minfo["Select_full_join"].to_i
-      metrics["Uptime"]                       = minfo["Uptime"].to_i
-      metrics["Table_locks_immediate"]        = minfo["Table_locks_immediate"].to_i
+      metrics["Queries"]                      = minfo["Queries"].to_i
+      metrics["Slow_queries"]                 = minfo["Slow_queries"].to_i
       metrics["Bytes_received"]               = minfo["Bytes_received"].to_i
       metrics["Bytes_sent"]                   = minfo["Bytes_sent"].to_i
-      metrics["Com_alter_db"]                 = minfo["Com_alter_db"].to_i
-      metrics["Com_create_db"]                = minfo["Com_create_db"].to_i
-      metrics["Com_delete"]                   = minfo["Com_delete"].to_i
-      metrics["Com_drop_db"]                  = minfo["Com_drop_db"].to_i
       metrics["Com_insert"]                   = minfo["Com_insert"].to_i
       metrics["Com_select"]                   = minfo["Com_select"].to_i
       metrics["Com_update"]                   = minfo["Com_update"].to_i
-      metrics["Queries"]                      = minfo["Queries"].to_i
-      metrics["Slow_queries"]                 = minfo["Slow_queries"].to_i
+
+      #
+      # Extra mysql metrics.
+      # Uncomment these, or add your own, if you want that much more mysql data
+      #
+      #metrics["Handler_read_first"]           = minfo["Handler_read_first"].to_i
+      #metrics["Innodb_buffer_pool_wait_free"] = minfo["Innodb_buffer_pool_wait_free"].to_i
+      #metrics["Innodb_log_waits"]             = minfo["Innodb_log_waits"].to_i
+      #metrics["Innodb_data_read"]             = minfo["Innodb_data_read"].to_i
+      #metrics["Innodb_data_written"]          = minfo["Innodb_data_written"].to_i
+      #metrics["Innodb_data_pending_fsyncs"]   = minfo["Innodb_data_pending_fsyncs"].to_i
+      #metrics["Innodb_data_pending_reads"]    = minfo["Innodb_data_pending_reads"].to_i
+      #metrics["Innodb_data_pending_writes"]   = minfo["Innodb_data_pending_writes"].to_i
+      #metrics["Innodb_os_log_pending_fsyncs"] = minfo["Innodb_os_log_pending_fsyncs"].to_i
+      #metrics["Innodb_os_log_pending_writes"] = minfo["Innodb_os_log_pending_writes"].to_i
+      #metrics["Innodb_os_log_written"]        = minfo["Innodb_os_log_written"].to_i
+      #metrics["Qcache_lowmem_prunes"]         = minfo["Qcache_lowmem_prunes"].to_i
+      #metrics["Key_reads"]                    = minfo["Key_reads"].to_i
+      #metrics["Key_writes"]                   = minfo["Key_writes"].to_i
+      #metrics["Max_used_connections"]         = minfo["Max_used_connections"].to_i
+      #metrics["Open_tables"]                  = minfo["Open_tables"].to_i
+      #metrics["Open_files"]                   = minfo["Open_files"].to_i
+      #metrics["Select_full_join"]             = minfo["Select_full_join"].to_i
+      #metrics["Uptime"]                       = minfo["Uptime"].to_i
+      #metrics["Table_locks_immediate"]        = minfo["Table_locks_immediate"].to_i
+      #metrics["Com_alter_db"]                 = minfo["Com_alter_db"].to_i
+      #metrics["Com_create_db"]                = minfo["Com_create_db"].to_i
+      #metrics["Com_delete"]                   = minfo["Com_delete"].to_i
+      #metrics["Com_drop_db"]                  = minfo["Com_drop_db"].to_i
 
       mysql.close
 
@@ -393,38 +398,43 @@ def ensure_mysql_metric_group(metric_group, group_name, group_label)
   metric_group.metrics = []
   metric_group.metrics << {:type => "ce_gauge",   :name => "Threads_connected",            :unit => "Threads"}
   metric_group.metrics << {:type => "ce_counter", :name => "Created_tmp_disk_tables",      :unit => "Tables"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "Handler_read_first",           :unit => "Reads"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_buffer_pool_wait_free"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_log_waits",             :unit => "Waits"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Innodb_data_read",             :unit => "Bytes"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Innodb_data_written",          :unit => "Bytes"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_data_pending_fsyncs",   :unit => "FSyncs"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_data_pending_reads",    :unit => "Reads"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_data_pending_writes",   :unit => "Writes"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_os_log_pending_fsyncs", :unit => "FSyncs"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_os_log_pending_writes", :unit => "Writes"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Innodb_os_log_written"}
   metric_group.metrics << {:type => "ce_counter", :name => "Qcache_hits",                  :unit => "Hits"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Qcache_lowmem_prunes",         :unit => "Prunes"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Key_reads",                    :unit => "Reads"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Key_writes",                   :unit => "Writes"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "Max_used_connections",         :unit => "Connections"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "Open_tables",                  :unit => "Tables"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "Open_files",                   :unit => "Files"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Select_full_join"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Uptime",                       :unit => "Seconds"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "Table_locks_immediate"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Queries",                      :unit => "Queries"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Slow_queries",                 :unit => "Slow Queries"}
   metric_group.metrics << {:type => "ce_counter", :name => "Bytes_received",               :unit => "Bytes"}
   metric_group.metrics << {:type => "ce_counter", :name => "Bytes_sent",                   :unit => "Bytes"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Com_alter_db",                 :unit => "Commands"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Com_create_db",                :unit => "Commands"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Com_delete",                   :unit => "Commands"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Com_drop_db",                  :unit => "Commands"}
   metric_group.metrics << {:type => "ce_counter", :name => "Com_insert",                   :unit => "Commands"}
   metric_group.metrics << {:type => "ce_counter", :name => "Com_select",                   :unit => "Commands"}
   metric_group.metrics << {:type => "ce_counter", :name => "Com_update",                   :unit => "Commands"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Queries",                      :unit => "Queries"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Slow_queries",                 :unit => "Slow Queries"}
+
+  #
+  # Extra mysql metrics.
+  # Uncomment these, or add your own, if you want that much more mysql data
+  #
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "Handler_read_first",           :unit => "Reads"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_buffer_pool_wait_free"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_log_waits",             :unit => "Waits"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "Innodb_data_read",             :unit => "Bytes"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "Innodb_data_written",          :unit => "Bytes"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_data_pending_fsyncs",   :unit => "FSyncs"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_data_pending_reads",    :unit => "Reads"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_data_pending_writes",   :unit => "Writes"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_os_log_pending_fsyncs", :unit => "FSyncs"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "Innodb_os_log_pending_writes", :unit => "Writes"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "Innodb_os_log_written"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "Qcache_lowmem_prunes",         :unit => "Prunes"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "Key_reads",                    :unit => "Reads"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "Key_writes",                   :unit => "Writes"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "Max_used_connections",         :unit => "Connections"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "Open_tables",                  :unit => "Tables"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "Open_files",                   :unit => "Files"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "Select_full_join"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "Uptime",                       :unit => "Seconds"}
+  #metric_group.metrics << {:type => "ce_gauge",   :name => "Table_locks_immediate"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "Com_alter_db",                 :unit => "Commands"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "Com_create_db",                :unit => "Commands"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "Com_delete",                   :unit => "Commands"}
+  #metric_group.metrics << {:type => "ce_counter", :name => "Com_drop_db",                  :unit => "Commands"}
   metric_group.save
   metric_group
 end
@@ -432,7 +442,7 @@ end
 def create_mysql_dashboard(metric_group, name, server_list)
   log "Creating new MySQL/RDS Dashboard"
   servers = server_list.map {|server_entry| server_entry["name"]}
-  metrics = %w(Created_tmp_disk_tables Qcache_hits Threads_connected Slow_queries Queries Open_tables Bytes_received Bytes_sent)
+  metrics = metric_group.metrics || []
 
   # Create a dashboard for all identifiers:
   CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
@@ -575,7 +585,7 @@ end
 def create_apache_dashboard(metric_group, name, server_list)
   log "Creating new Apache Dashboard"
   servers = server_list.map {|server_entry| server_entry["name"]}
-  metrics = %w(idle_workers busy_workers bytes_per_request bytes_per_sec request_per_sec total_kbytes total_accesses)
+  metrics = metric_group.metrics || []
   metrics << "avg_request_duration" if @config['apache']['logformat']
 
   # Create a dashboard for all identifiers:
@@ -650,7 +660,7 @@ end
 def create_nginx_dashboard(metric_group, name, server_list)
   log "Creating new Nginx Dashboard"
   servers = server_list.map {|server_entry| server_entry["name"]}
-  metrics = %w(waiting writing reading connections_requested connections_handled connections_accepts active_connections )
+  metrics = metric_group.metrics || []
 
   # Create a dashboard for all identifiers:
   CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
@@ -710,8 +720,11 @@ end
 
 #################################
 
-retries = 30
+MAX_RETRIES = 30
+last_failure = 0
 begin
+  # reset retries counter if last failure was more than 10 minutes ago
+  retries = MAX_RETRIES if Time.now.to_i - last_failure > 600
   dashboards = CopperEgg::CustomDashboard.find
   metric_groups = CopperEgg::MetricGroup.find
 rescue => e
@@ -719,6 +732,7 @@ rescue => e
   raise e if @debug
   sleep 2
   retries -= 1
+  last_failure = Time.now.to_i
   retry if retries > 0
   raise e
 end
@@ -742,14 +756,17 @@ end
       trap("INT") { child_interrupt if !@interrupted }
       trap("TERM") { child_interrupt if !@interrupted }
 
-      retries = 30
+      last_failure = 0
       begin
+        # reset retries counter if last failure was more than 10 minutes ago
+        retries = MAX_RETRIES if Time.now.to_i - last_failure > 600
         monitor_service(service, metric_group)
       rescue => e
         log "Error monitoring #{service}.  Retying (#{retries}) more times..."
         raise e if @debug
         sleep 2
         retries -= 1
+        last_failure = Time.now.to_i
         retry if retries > 0
         raise e
       end
