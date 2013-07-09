@@ -728,7 +728,7 @@ begin
   dashboards = CopperEgg::CustomDashboard.find
   metric_groups = CopperEgg::MetricGroup.find
 rescue => e
-  log "Error connecting to server.  Retying (#{retries}) more times..."
+  puts "Error connecting to server.  Retying (#{retries}) more times..."
   raise e if @debug
   sleep 2
   retries -= 1
@@ -762,7 +762,8 @@ end
         retries = MAX_RETRIES if Time.now.to_i - last_failure > 600
         monitor_service(service, metric_group)
       rescue => e
-        log "Error monitoring #{service}.  Retying (#{retries}) more times..."
+        puts "Error monitoring #{service}.  Retying (#{retries}) more times..."
+        # updated 7-9-2013, removed the # before if @debug
         raise e if @debug
         sleep 2
         retries -= 1
