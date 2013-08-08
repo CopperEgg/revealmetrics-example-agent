@@ -35,6 +35,7 @@ mysql:
     username: "root"
     password: "pw"
     database: "mysql"
+    socket: "/var/lib/mysql/mysql.sock"
 apache:
   group_name: "apache-001"
   group_label: "Apache Metrics"

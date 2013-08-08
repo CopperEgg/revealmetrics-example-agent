@@ -165,6 +165,7 @@ def connect_to_redis(uri, attempts=10)
     connect_try_count += 1
     if connect_try_count > attempts
       log "#{e.inspect}"
+      log e.backtrace[0..30].join("\n") if @debug
       raise e
     end
     sleep 0.5
@@ -199,6 +200,8 @@ def monitor_redis(redis_servers, group_name)
         rinfo = redis.info()
       rescue Exception => e
         log "Error getting Redis stats from: #{label} [skipping]"
+        log "#{e.inspect}"
+        log e.backtrace[0..30].join("\n") if @debug
         next
       end
 
@@ -255,8 +258,8 @@ def ensure_redis_metric_group(metric_group, group_name, group_label)
 
   metric_group.metrics = []
   metric_group.metrics << {:type => "ce_counter", :name => "uptime",                     :unit => "Seconds"}
-  metric_group.metrics << {:type => "ce_gauge_f", :name => "used_cpu_sys",               :unit => "Percent"}
-  metric_group.metrics << {:type => "ce_gauge_f", :name => "used_cpu_user",              :unit => "Percent"}
+  metric_group.metrics << {:type => "ce_gauge_f", :name => "used_cpu_sys",               :unit => "Seconds"}
+  metric_group.metrics << {:type => "ce_gauge_f", :name => "used_cpu_user",              :unit => "Seconds"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "connected_clients",          :unit => "Clients"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "connected_slaves",           :unit => "Slaves"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "blocked_clients",            :unit => "Clients"}
@@ -301,11 +304,12 @@ end
 
 ####################################################################
 
-def connect_to_mysql(hostname, user, pw, db)
+def connect_to_mysql(hostname, user, pw, db, socket=nil)
   client = Mysql2::Client.new(:host => hostname,
                               :username => user,
                               :password => pw,
-                              :database => db)
+                              :database => db,
+                              :socket => socket)
     
   return client
 end
@@ -322,11 +326,13 @@ def monitor_mysql(mysql_servers, group_name)
       return if @interrupted
 
       begin
-        mysql = connect_to_mysql(mhost["hostname"], mhost["username"], mhost["password"], mhost["database"])
+        mysql = connect_to_mysql(mhost["hostname"], mhost["username"], mhost["password"], mhost["database"], mhost["socket"])
         mstats = mysql.query('SHOW GLOBAL STATUS;')
 
       rescue Exception => e
         log "Error getting MySQL stats from: #{mhost['hostname']} [skipping]"
+        log "#{e.inspect}"
+        log e.backtrace[0..30].join("\n") if @debug
         next
       end
 
@@ -473,6 +479,8 @@ def monitor_apache(apache_servers, group_name)
 
       rescue Exception => e
         log "Error getting Apache stats from: #{ahost['url']} [skipping]"
+        log "#{e.inspect}"
+        log e.backtrace[0..30].join("\n") if @debug
         next
       end
 
@@ -617,6 +625,8 @@ def monitor_nginx(nginx_servers, group_name)
 
       rescue Exception => e
         log "Error getting Nginx stats from: #{nhost['url']} [skipping]"
+        log "#{e.inspect}"
+        log e.backtrace[0..30].join("\n") if @debug
         next
       end
 
@@ -729,6 +739,8 @@ begin
   metric_groups = CopperEgg::MetricGroup.find
 rescue => e
   puts "Error connecting to server.  Retying (#{retries}) more times..."
+  log "#{e.inspect}"
+  log e.backtrace[0..30].join("\n") if @debug
   raise e if @debug
   sleep 2
   retries -= 1
@@ -750,6 +762,8 @@ end
       log "Could not create a dashboard for #{service}" if dashboard.nil?
     rescue => e
       log e.message
+      log "#{e.inspect}"
+      log e.backtrace[0..30].join("\n") if @debug
       next
     end
     child_pid = fork {
@@ -763,6 +777,8 @@ end
         monitor_service(service, metric_group)
       rescue => e
         puts "Error monitoring #{service}.  Retying (#{retries}) more times..."
+        log "#{e.inspect}"
+        log e.backtrace[0..30].join("\n") if @debug
         # updated 7-9-2013, removed the # before if @debug
         raise e if @debug
         sleep 2
