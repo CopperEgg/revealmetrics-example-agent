@@ -108,6 +108,7 @@ opts.each do |opt, arg|
     @freq = arg.to_i
   when '--apihost'
     CopperEgg::Api.host = arg
+    log "Using api host #{arg}"
   end
 end
 
@@ -326,7 +327,12 @@ def monitor_mysql(mysql_servers, group_name)
       return if @interrupted
 
       begin
-        mysql = connect_to_mysql(mhost["hostname"], mhost["username"], mhost["password"], mhost["database"], mhost["socket"])
+        mysql = Mysql2::Client.new(:host     => mhost["hostname"],
+                                   :username => mhost["username"],
+                                   :password => mhost["password"],
+                                   :database => mhost["database"],
+                                   :socket   => mhost["socket"],
+                                   :port     => mhost["port"])
         mstats = mysql.query('SHOW GLOBAL STATUS;')
 
       rescue Exception => e
@@ -735,8 +741,8 @@ last_failure = 0
 begin
   # reset retries counter if last failure was more than 10 minutes ago
   retries = MAX_RETRIES if Time.now.to_i - last_failure > 600
-  dashboards = CopperEgg::CustomDashboard.find
   metric_groups = CopperEgg::MetricGroup.find
+  dashboards = CopperEgg::CustomDashboard.find
 rescue => e
   puts "Error connecting to server.  Retying (#{retries}) more times..."
   log "#{e.inspect}"
@@ -771,9 +777,9 @@ end
       trap("TERM") { child_interrupt if !@interrupted }
 
       last_failure = 0
+      retries = MAX_RETRIES
       begin
         # reset retries counter if last failure was more than 10 minutes ago
-        retries = MAX_RETRIES if Time.now.to_i - last_failure > 600
         monitor_service(service, metric_group)
       rescue => e
         puts "Error monitoring #{service}.  Retying (#{retries}) more times..."
@@ -783,6 +789,7 @@ end
         raise e if @debug
         sleep 2
         retries -= 1
+        retries = MAX_RETRIES if Time.now.to_i - last_failure > 600
         last_failure = Time.now.to_i
         retry if retries > 0
         raise e
