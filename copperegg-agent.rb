@@ -98,6 +98,7 @@ opts.each do |opt, arg|
     exit
   when '--debug'
     @debug = true
+    @verbose = true
   when '--verbose'
     @verbose = true
   when '--config'
@@ -624,6 +625,11 @@ def monitor_nginx(nginx_servers, group_name)
         uri = URI.parse("#{nhost['url']}/nginx_status")
         response = Net::HTTP.get_response(uri)
         if response.code != "200"
+          log "whoops! non-200 response code from #{nhost['url']}/nginx_status"
+          log "    code: #{response.code}" if @verbose
+          log "    head: #{response.header.to_hash}" if @verbose
+          log "    body: #{response.body}" if @verbose
+          log "    SKIPPING"
           next
         end
 
