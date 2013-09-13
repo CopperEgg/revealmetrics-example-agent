@@ -618,17 +618,19 @@ def monitor_nginx(nginx_servers, group_name)
   while !@interupted do
     return if @interrupted
 
+    log "Checking servers #{nginx_servers.inspect}"
     nginx_servers.each do |nhost|
       return if @interrupted
 
       begin
+        log "Testing #{nhost['url']}/nginx_status" if @verbose
         uri = URI.parse("#{nhost['url']}/nginx_status")
         response = Net::HTTP.get_response(uri)
+        log "    code: #{response.code}" if @verbose
+        log "    head: #{response.header.to_hash}" if @verbose
+        log "    body: #{response.body}" if @verbose
         if response.code != "200"
-          log "whoops! non-200 response code from #{nhost['url']}/nginx_status"
-          log "    code: #{response.code}" if @verbose
-          log "    head: #{response.header.to_hash}" if @verbose
-          log "    body: #{response.body}" if @verbose
+          log "    whoops! non-200 response code from #{nhost['url']}/nginx_status"
           log "    SKIPPING"
           next
         end
