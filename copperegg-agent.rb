@@ -746,20 +746,22 @@ end
 
 MAX_RETRIES = 30
 last_failure = 0
+
+MAX_SETUP_RETRIES = 5
+setup_retries = MAX_SETUP_RETRIES
+
+
 begin
-  # reset retries counter if last failure was more than 10 minutes ago
-  retries = MAX_RETRIES if Time.now.to_i - last_failure > 600
   metric_groups = CopperEgg::MetricGroup.find
   dashboards = CopperEgg::CustomDashboard.find
 rescue => e
-  puts "Error connecting to server.  Retying (#{retries}) more times..."
+  puts "Error connecting to server.  Retying (#{setup_retries}) more times..."
   log "#{e.inspect}"
   log e.backtrace[0..30].join("\n") if @debug
   raise e if @debug
   sleep 2
-  retries -= 1
-  last_failure = Time.now.to_i
-  retry if retries > 0
+  setup_retries -= 1
+  retry if setup_retries > 0
   raise e
 end
 
