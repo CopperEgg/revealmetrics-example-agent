@@ -86,7 +86,7 @@ config_file = "config.yml"
 @debug = false
 @verbose = false
 @freq = 60  # update frequency in seconds
-@interupted = false
+@interrupted = false
 @worker_pids = []
 @services = []
 
@@ -180,7 +180,7 @@ def monitor_redis(redis_servers, group_name)
   require 'redis'
   log "Monitoring Redis: "
   
-  while !@interupted do
+  while !@interrupted do
     return if @interrupted
 
     redis_servers.each do |rhost|
@@ -321,7 +321,7 @@ def monitor_mysql(mysql_servers, group_name)
   log "Monitoring MySQL: "
   return if @interrupted
 
-  while !@interupted do
+  while !@interrupted do
     return if @interrupted
 
     mysql_servers.each do |mhost|
@@ -469,7 +469,7 @@ def monitor_apache(apache_servers, group_name)
   log "Monitoring Apache: "
   return if @interrupted
 
-  while !@interupted do
+  while !@interrupted do
     return if @interrupted
 
     apache_servers.each do |ahost|
@@ -615,7 +615,7 @@ def monitor_nginx(nginx_servers, group_name)
   log "Monitoring Nginx: "
   return if @interrupted
 
-  while !@interupted do
+  while !@interrupted do
     return if @interrupted
 
     log "Checking servers #{nginx_servers.inspect}"
