@@ -1,11 +1,11 @@
 revealmetrics-example-agent
 ===========================
 
-Example agent for use with CopperEgg RevealMetrics.
+Example agent for use with Uptime Cloud Monitor RevealMetrics.
 
-If you do not have a CopperEgg account, you may create one at <https://copperegg.com/copperegg-signup/>
+If you do not have a Uptime Cloud Monitor account, you may create one at <https://www.idera.com/infrastructure-monitoring-as-a-service/freetrialsubscriptionform>
 
-If you have a CopperEgg account, you may log in and use RevealMetrics at <https://app.copperegg.com/login>
+If you have a Uptime Cloud Monitor account, you may log in and use RevealMetrics at <https://app.copperegg.com/login>
 
 
 # Getting Started with RevealMetrics Ruby Agent
