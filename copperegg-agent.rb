@@ -17,7 +17,7 @@ def help
   puts "usage: $0 args"
   puts "Examples:"
   puts "  -c config.yml"
-  puts "  -f 60                 (for 60s updates. Valid values: 5, 15, 60, 300, 900, 3600)"
+  puts "  -f 60                 (for 60s updates. Valid values: 15, 60, 300, 900, 3600)"
   puts "  -k hcd7273hrejh712    (your APIKEY from the UI dashboard settings)"
   puts "  -a https://api.copperegg.com    (API endpoint to use [DEBUG ONLY])"
 end
@@ -152,7 +152,7 @@ if @services.length == 0
   exit
 end
 
-@freq = 60 if ![5, 15, 60, 300, 900, 3600, 21600].include?(@freq)
+@freq = 60 if ![15, 60, 300, 900, 3600, 21600].include?(@freq)
 log "Update frequency set to #{@freq}s."
 
 ####################################################################
@@ -179,7 +179,7 @@ end
 def monitor_redis(redis_servers, group_name)
   require 'redis'
   log "Monitoring Redis: "
-  
+
   while !@interrupted do
     return if @interrupted
 
@@ -312,7 +312,7 @@ def connect_to_mysql(hostname, user, pw, db, socket=nil)
                               :password => pw,
                               :database => db,
                               :socket => socket)
-    
+
   return client
 end
 
