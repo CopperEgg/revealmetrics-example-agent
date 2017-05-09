@@ -299,7 +299,8 @@ def create_redis_dashboard(metric_group, name, server_list)
   metrics = metric_group.metrics || []
 
   # Create a dashboard for all identifiers:
-  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
+  CopperEgg::CustomDashboard.create(metric_group, name: name, identifiers: nil, metrics: metrics,
+                                    is_database: true)
   # Create a dashboard for only the servers we've defined:
   #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
@@ -458,7 +459,8 @@ def create_mysql_dashboard(metric_group, name, server_list)
   metrics = metric_group.metrics || []
 
   # Create a dashboard for all identifiers:
-  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
+  CopperEgg::CustomDashboard.create(metric_group, name: name, identifiers: nil, metrics: metrics,
+                                    is_database: true)
   # Create a dashboard for only the servers we've defined:
   #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
@@ -604,7 +606,7 @@ def create_apache_dashboard(metric_group, name, server_list)
   metrics << "avg_request_duration" if @config['apache']['logformat']
 
   # Create a dashboard for all identifiers:
-  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
+  CopperEgg::CustomDashboard.create(metric_group, name: name, identifiers: nil, metrics: metrics)
   # Create a dashboard for only the servers we've defined:
   #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
@@ -687,7 +689,7 @@ def create_nginx_dashboard(metric_group, name, server_list)
   metrics = metric_group.metrics || []
 
   # Create a dashboard for all identifiers:
-  CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => nil, :metrics => metrics)
+  CopperEgg::CustomDashboard.create(metric_group, name: name, identifiers: nil, metrics: metrics)
   # Create a dashboard for only the servers we've defined:
   #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
