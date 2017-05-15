@@ -249,10 +249,10 @@ def monitor_redis(redis_servers, group_name)
   end
 end
 
-def ensure_redis_metric_group(metric_group, group_name, group_label)
+def ensure_redis_metric_group(metric_group, group_name, group_label, service)
   if metric_group.nil? || !metric_group.is_a?(CopperEgg::MetricGroup)
     log "Creating Redis metric group"
-    metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+    metric_group = CopperEgg::MetricGroup.new(name: group_name, label: group_label, frequency: @freq, service: service)
   else
     log "Updating Redis metric group"
     metric_group.frequency = @freq
@@ -399,10 +399,10 @@ def monitor_mysql(mysql_servers, group_name)
   end
 end
 
-def ensure_mysql_metric_group(metric_group, group_name, group_label)
+def ensure_mysql_metric_group(metric_group, group_name, group_label, service)
   if metric_group.nil? || !metric_group.is_a?(CopperEgg::MetricGroup)
     log "Creating MySQL metric group"
-    metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
+    metric_group = CopperEgg::MetricGroup.new(name: group_name, label: group_label, frequency: @freq, service: service)
   else
     log "Updating MySQL metric group"
     metric_group.frequency = @freq
@@ -702,9 +702,9 @@ trap("TERM") { parent_interrupt }
 
 def ensure_metric_group(metric_group, service)
   if service == "redis"
-    return ensure_redis_metric_group(metric_group, @config[service]["group_name"], @config[service]["group_label"])
+    return ensure_redis_metric_group(metric_group, @config[service]["group_name"], @config[service]["group_label"], service)
   elsif service == "mysql"
-    return ensure_mysql_metric_group(metric_group, @config[service]["group_name"], @config[service]["group_label"])
+    return ensure_mysql_metric_group(metric_group, @config[service]["group_name"], @config[service]["group_label"], service)
   elsif service == "apache"
     return ensure_apache_metric_group(metric_group, @config[service]["group_name"], @config[service]["group_label"])
   elsif service == "nginx"
@@ -769,12 +769,12 @@ end
   if @config[service] && @config[service]["servers"].length > 0
     begin
       log "Checking for existence of metric group for #{service}"
-      metric_group = metric_groups.detect {|m| m.name == @config[service]["group_name"]}
+      metric_group = metric_groups.detect {|m| m.name == @config[service]["group_name"]} unless metric_groups.nil?
       metric_group = ensure_metric_group(metric_group, service)
       raise "Could not create a metric group for #{service}" if metric_group.nil?
 
       log "Checking for existence of #{service} Dashboard"
-      dashboard = dashboards.detect {|d| d.name == @config[service]["dashboard"]} || create_dashboard(service, metric_group)
+      dashboard = dashboards.detect {|d| d.name == @config[service]["dashboard"]} || create_dashboard(service, metric_group) unless dashboards.nil?
       log "Could not create a dashboard for #{service}" if dashboard.nil?
     rescue => e
       log e.message
