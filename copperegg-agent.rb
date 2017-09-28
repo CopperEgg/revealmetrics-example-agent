@@ -255,6 +255,7 @@ def ensure_redis_metric_group(metric_group, group_name, group_label, service)
     metric_group = CopperEgg::MetricGroup.new(name: group_name, label: group_label, frequency: @freq, service: service)
   else
     log "Updating Redis metric group"
+    metric_group.service = service
     metric_group.frequency = @freq
   end
 
@@ -265,9 +266,9 @@ def ensure_redis_metric_group(metric_group, group_name, group_label, service)
   metric_group.metrics << {:type => "ce_gauge",   :name => "connected_clients",          :unit => "Clients"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "connected_slaves",           :unit => "Slaves"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "blocked_clients",            :unit => "Clients"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "used_memory",                :unit => "Bytes"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "used_memory_rss",            :unit => "Bytes"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "used_memory_peak",           :unit => "Bytes"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "used_memory",                :unit => "b"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "used_memory_rss",            :unit => "b"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "used_memory_peak",           :unit => "b"}
   metric_group.metrics << {:type => "ce_gauge_f", :name => "mem_fragmentation_ratio"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "changes_since_last_save",    :unit => "Changes"}
   metric_group.metrics << {:type => "ce_counter", :name => "total_connections_received", :unit => "Connections"}
@@ -300,7 +301,7 @@ def create_redis_dashboard(metric_group, name, server_list)
 
   # Create a dashboard for all identifiers:
   CopperEgg::CustomDashboard.create(metric_group, name: name, identifiers: nil, metrics: metrics,
-                                    is_database: true)
+                                    is_database: true, service: 'redis')
   # Create a dashboard for only the servers we've defined:
   #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
@@ -406,6 +407,7 @@ def ensure_mysql_metric_group(metric_group, group_name, group_label, service)
     metric_group = CopperEgg::MetricGroup.new(name: group_name, label: group_label, frequency: @freq, service: service)
   else
     log "Updating MySQL metric group"
+    metric_group.service = service
     metric_group.frequency = @freq
   end
 
@@ -415,8 +417,8 @@ def ensure_mysql_metric_group(metric_group, group_name, group_label, service)
   metric_group.metrics << {:type => "ce_counter", :name => "Qcache_hits",                  :unit => "Hits"}
   metric_group.metrics << {:type => "ce_counter", :name => "Queries",                      :unit => "Queries"}
   metric_group.metrics << {:type => "ce_counter", :name => "Slow_queries",                 :unit => "Slow Queries"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Bytes_received",               :unit => "Bytes"}
-  metric_group.metrics << {:type => "ce_counter", :name => "Bytes_sent",                   :unit => "Bytes"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Bytes_received",               :unit => "b"}
+  metric_group.metrics << {:type => "ce_counter", :name => "Bytes_sent",                   :unit => "b"}
   metric_group.metrics << {:type => "ce_counter", :name => "Com_insert",                   :unit => "Commands"}
   metric_group.metrics << {:type => "ce_counter", :name => "Com_select",                   :unit => "Commands"}
   metric_group.metrics << {:type => "ce_counter", :name => "Com_update",                   :unit => "Commands"}
@@ -460,7 +462,7 @@ def create_mysql_dashboard(metric_group, name, server_list)
 
   # Create a dashboard for all identifiers:
   CopperEgg::CustomDashboard.create(metric_group, name: name, identifiers: nil, metrics: metrics,
-                                    is_database: true)
+                                    is_database: true, service: 'mysql')
   # Create a dashboard for only the servers we've defined:
   #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
@@ -570,16 +572,17 @@ def ensure_apache_metric_group(metric_group, group_name, group_label)
     metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
   else
     log "Updating Apache metric group"
+    metric_group.service = service
     metric_group.frequency = @freq
   end
 
   metric_group.metrics = []
   metric_group.metrics << {:type => "ce_counter", :name => "total_accesses",              :unit => "Accesses"}
-  metric_group.metrics << {:type => "ce_counter", :name => "total_kbytes",                :unit => "kBytes"}
+  metric_group.metrics << {:type => "ce_counter", :name => "total_kbytes",                :unit => "kb"}
   metric_group.metrics << {:type => "ce_gauge_f", :name => "cpu_load",                    :unit => "Percent"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "uptime",                      :unit => "Seconds"}
   metric_group.metrics << {:type => "ce_gauge_f", :name => "request_per_sec",             :unit => "Req/s"}
-  metric_group.metrics << {:type => "ce_gauge",   :name => "bytes_per_sec",               :unit => "Bytes/s"}
+  metric_group.metrics << {:type => "ce_gauge",   :name => "bytes_per_sec",               :unit => "bps"}
   metric_group.metrics << {:type => "ce_gauge_f", :name => "bytes_per_request",           :unit => "Bytes/Req"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "busy_workers",                :unit => "Busy Workers"}
   metric_group.metrics << {:type => "ce_gauge",   :name => "idle_workers",                :unit => "Idle Workers"}
@@ -606,7 +609,7 @@ def create_apache_dashboard(metric_group, name, server_list)
   metrics << "avg_request_duration" if @config['apache']['logformat']
 
   # Create a dashboard for all identifiers:
-  CopperEgg::CustomDashboard.create(metric_group, name: name, identifiers: nil, metrics: metrics)
+  CopperEgg::CustomDashboard.create(metric_group, name: name, identifiers: nil, metrics: metrics, service: 'apache')
   # Create a dashboard for only the servers we've defined:
   #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
@@ -668,6 +671,7 @@ def ensure_nginx_metric_group(metric_group, group_name, group_label)
     metric_group = CopperEgg::MetricGroup.new(:name => group_name, :label => group_label, :frequency => @freq)
   else
     log "Updating Nginx metric group"
+    metric_group.service = service
     metric_group.frequency = @freq
   end
 
@@ -689,7 +693,7 @@ def create_nginx_dashboard(metric_group, name, server_list)
   metrics = metric_group.metrics || []
 
   # Create a dashboard for all identifiers:
-  CopperEgg::CustomDashboard.create(metric_group, name: name, identifiers: nil, metrics: metrics)
+  CopperEgg::CustomDashboard.create(metric_group, name: name, identifiers: nil, metrics: metrics, service: 'nginx')
   # Create a dashboard for only the servers we've defined:
   #CopperEgg::CustomDashboard.create(metric_group, :name => name, :identifiers => servers, :metrics => metrics)
 end
