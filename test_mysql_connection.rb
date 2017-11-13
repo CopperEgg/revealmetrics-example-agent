@@ -6,7 +6,11 @@ require 'mysql2'
 end
 
 begin
-	client = Mysql2::Client.new(host: ARGV[0], username: ARGV[1], password: ARGV[2])
+	if ARG[2].nil? || ARGV[2] == ''
+	  client = Mysql2::Client.new(host: ARGV[0], username: ARGV[1])
+	else
+	  client = Mysql2::Client.new(host: ARGV[0], username: ARGV[1], password: ARGV[2])
+	end
 	client.query('show global status')
 	client.close
 	puts('success')
