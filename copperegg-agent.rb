@@ -261,34 +261,34 @@ def ensure_redis_metric_group(metric_group, group_name, group_label, service)
   end
 
   metric_group.metrics = []
-  metric_group.metrics << {:type => 'ce_counter', :name => 'uptime',                     :unit => 's'}
-  metric_group.metrics << {:type => 'ce_gauge_f', :name => 'used_cpu_sys',               :unit => 's'}
-  metric_group.metrics << {:type => 'ce_gauge_f', :name => 'used_cpu_user',              :unit => 's'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'connected_clients',          :unit => 'Clients'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'connected_slaves',           :unit => 'Slaves'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'blocked_clients',            :unit => 'Clients'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'used_memory',                :unit => 'b'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'used_memory_rss',            :unit => 'b'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'used_memory_peak',           :unit => 'b'}
-  metric_group.metrics << {:type => 'ce_gauge_f', :name => 'mem_fragmentation_ratio'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'changes_since_last_save',    :unit => 'Changes'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'total_connections_received', :unit => 'Connections'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'total_commands_processed',   :unit => 'Commands'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'expired_keys',               :unit => 'Keys'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'keyspace_hits',              :unit => 'Hits'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'keyspace_misses',            :unit => 'Misses'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'pubsub_channels',            :unit => 'Channels'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'pubsub_patterns',            :unit => 'Patterns'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'latest_fork_usec',           :unit => 'usec'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'keys',                       :unit => 'Keys'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'evicted_keys',               :unit => 'Keys'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'expires',                    :unit => 'Keys'}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'uptime',                     :unit => 's',           position: 0}
+  metric_group.metrics << {:type => 'ce_gauge_f', :name => 'used_cpu_sys',               :unit => 's',           position: 1}
+  metric_group.metrics << {:type => 'ce_gauge_f', :name => 'used_cpu_user',              :unit => 's',           position: 2}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'connected_clients',          :unit => 'Clients',     position: 3}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'connected_slaves',           :unit => 'Slaves',      position: 4}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'blocked_clients',            :unit => 'Clients',     position: 5}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'used_memory',                :unit => 'b',           position: 6}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'used_memory_rss',            :unit => 'b',           position: 7}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'used_memory_peak',           :unit => 'b',           position: 8}
+  metric_group.metrics << {:type => 'ce_gauge_f', :name => 'mem_fragmentation_ratio',                            position: 9}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'changes_since_last_save',    :unit => 'Changes',     position: 10}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'total_connections_received', :unit => 'Connections', position: 11}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'total_commands_processed',   :unit => 'Commands',    position: 12}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'expired_keys',               :unit => 'Keys',        position: 13}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'keyspace_hits',              :unit => 'Hits',        position: 14}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'keyspace_misses',            :unit => 'Misses',      position: 15}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'pubsub_channels',            :unit => 'Channels',    position: 16}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'pubsub_patterns',            :unit => 'Patterns',    position: 17}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'latest_fork_usec',           :unit => 'usec',        position: 18}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'keys',                       :unit => 'Keys',        position: 19}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'evicted_keys',               :unit => 'Keys',        position: 20}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'expires',                    :unit => 'Keys',        position: 21}
 
   # Uncomment these lines if you are using Redis 2.6:
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'used_memory_lua',            :unit => 'b'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'rdb_changes_since_last_save',:unit => 'Changes'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'instantaneous_ops_per_sec',  :unit => 'Ops'}
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'rejected_connections',       :unit => 'Connections'}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'used_memory_lua',            :unit => 'b',           position: 22}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'rdb_changes_since_last_save',:unit => 'Changes',     position: 23}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'instantaneous_ops_per_sec',  :unit => 'Ops',         position: 24}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'rejected_connections',       :unit => 'Connections', position: 25}
   # End Redis 2.6 metrics
 
   metric_group.save
@@ -414,45 +414,45 @@ def ensure_mysql_metric_group(metric_group, group_name, group_label, service)
   end
 
   metric_group.metrics = []
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'Threads_connected',            :unit => 'Threads'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'Created_tmp_disk_tables',      :unit => 'Tables'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'Qcache_hits',                  :unit => 'Hits'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'Queries',                      :unit => 'Queries'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'Slow_queries',                 :unit => 'Slow Queries'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'Bytes_received',               :unit => 'b'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'Bytes_sent',                   :unit => 'b'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'Com_insert',                   :unit => 'Commands'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'Com_select',                   :unit => 'Commands'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'Com_update',                   :unit => 'Commands'}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'Threads_connected',            :unit => 'Threads',      position: 0}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'Created_tmp_disk_tables',      :unit => 'Tables',       position: 1}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'Qcache_hits',                  :unit => 'Hits',         position: 2}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'Queries',                      :unit => 'Queries',      position: 3}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'Slow_queries',                 :unit => 'Slow Queries', position: 4}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'Bytes_received',               :unit => 'b',            position: 5}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'Bytes_sent',                   :unit => 'b',            position: 6}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'Com_insert',                   :unit => 'Commands',     position: 7}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'Com_select',                   :unit => 'Commands',     position: 8}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'Com_update',                   :unit => 'Commands',     position: 9}
 
   #
   # Extra mysql metrics.
   # Uncomment these, or add your own, if you want that much more mysql data
   #
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Handler_read_first',           :unit => 'Reads'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_buffer_pool_wait_free'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_log_waits',             :unit => 'Waits'}
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'Innodb_data_read',             :unit => 'b'}
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'Innodb_data_written',          :unit => 'b'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_data_pending_fsyncs',   :unit => 'FSyncs'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_data_pending_reads',    :unit => 'Reads'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_data_pending_writes',   :unit => 'Writes'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_os_log_pending_fsyncs', :unit => 'FSyncs'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_os_log_pending_writes', :unit => 'Writes'}
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'Innodb_os_log_written'}
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'Qcache_lowmem_prunes',         :unit => 'Prunes'}
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'Key_reads',                    :unit => 'Reads'}
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'Key_writes',                   :unit => 'Writes'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Max_used_connections',         :unit => 'Connections'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Open_tables',                  :unit => 'Tables'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Open_files',                   :unit => 'Files'}
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'Select_full_join'}
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'Uptime',                       :unit => 's'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Table_locks_immediate'}
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'Com_alter_db',                 :unit => 'Commands'}
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'Com_create_db',                :unit => 'Commands'}
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'Com_delete',                   :unit => 'Commands'}
-  #metric_group.metrics << {:type => 'ce_counter', :name => 'Com_drop_db',                  :unit => 'Commands'}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Handler_read_first',           :unit => 'Reads', position: 10}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_buffer_pool_wait_free', position: 11}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_log_waits',             :unit => 'Waits', position: 12}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'Innodb_data_read',             :unit => 'b', position: 13}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'Innodb_data_written',          :unit => 'b', position: 13}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_data_pending_fsyncs',   :unit => 'FSyncs', position: 14}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_data_pending_reads',    :unit => 'Reads', position: 15}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_data_pending_writes',   :unit => 'Writes', position: 16}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_os_log_pending_fsyncs', :unit => 'FSyncs', position: 17}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Innodb_os_log_pending_writes', :unit => 'Writes', position: 18}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'Innodb_os_log_written', position: 19}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'Qcache_lowmem_prunes',         :unit => 'Prunes', position: 20}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'Key_reads',                    :unit => 'Reads', position: 21}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'Key_writes',                   :unit => 'Writes', position: 22}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Max_used_connections',         :unit => 'Connections', position: 23}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Open_tables',                  :unit => 'Tables', position: 24}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Open_files',                   :unit => 'Files', position: 25}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'Select_full_join', position: 26}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'Uptime',                       :unit => 's', position: 27}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'Table_locks_immediate', position: 28}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'Com_alter_db',                 :unit => 'Commands', position: 29}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'Com_create_db',                :unit => 'Commands', position: 30}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'Com_delete',                   :unit => 'Commands', position: 31}
+  #metric_group.metrics << {:type => 'ce_counter', :name => 'Com_drop_db',                  :unit => 'Commands', position: 32}
   metric_group.save
   metric_group
 end
@@ -580,21 +580,21 @@ def ensure_apache_metric_group(metric_group, group_name, group_label,service)
   end
 
   metric_group.metrics = []
-  metric_group.metrics << {:type => 'ce_counter', :name => 'total_accesses',              :unit => 'Accesses'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'total_kbytes',                :unit => 'kb'}
-  metric_group.metrics << {:type => 'ce_gauge_f', :name => 'cpu_load',                    :unit => 'Percent'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'uptime',                      :unit => 's'}
-  metric_group.metrics << {:type => 'ce_gauge_f', :name => 'request_per_sec',             :unit => 'Req/s'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'bytes_per_sec',               :unit => 'bps'}
-  metric_group.metrics << {:type => 'ce_gauge_f', :name => 'bytes_per_request',           :unit => 'Bytes/Req'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'busy_workers',                :unit => 'Busy Workers'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'idle_workers',                :unit => 'Idle Workers'}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'total_accesses',              :unit => 'Accesses', position: 0}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'total_kbytes',                :unit => 'kb', position: 1}
+  metric_group.metrics << {:type => 'ce_gauge_f', :name => 'cpu_load',                    :unit => 'Percent', position: 2}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'uptime',                      :unit => 's', position: 3}
+  metric_group.metrics << {:type => 'ce_gauge_f', :name => 'request_per_sec',             :unit => 'Req/s', position: 4}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'bytes_per_sec',               :unit => 'bps', position: 5}
+  metric_group.metrics << {:type => 'ce_gauge_f', :name => 'bytes_per_request',           :unit => 'Bytes/Req', position: 6}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'busy_workers',                :unit => 'Busy Workers', position: 7}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'idle_workers',                :unit => 'Idle Workers', position: 8}
 
   # Uncomment these lines if you are using apache 2.4+
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'connections_total',           :unit => 'Connections'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'connections_async_writing',   :unit => 'Connections'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'connections_async_keepalive', :unit => 'Connections'}
-  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'connections_async_closing',   :unit => 'Connections'}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'connections_total',           :unit => 'Connections', position: 9}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'connections_async_writing',   :unit => 'Connections', position: 10}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'connections_async_keepalive', :unit => 'Connections', position: 11}
+  #metric_group.metrics << {:type => 'ce_gauge',   :name => 'connections_async_closing',   :unit => 'Connections', position: 12}
   # End apache 2.4+ metrics
 
   if @config['apache']['logformat']
@@ -680,13 +680,13 @@ def ensure_nginx_metric_group(metric_group, group_name, group_label, service)
   end
 
   metric_group.metrics = []
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'active_connections',     :unit => 'Connections'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'connections_accepts',    :unit => 'Connections'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'connections_handled',    :unit => 'Connections'}
-  metric_group.metrics << {:type => 'ce_counter', :name => 'connections_requested',  :unit => 'Connections'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'reading',                :unit => 'Connections'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'writing',                :unit => 'Connections'}
-  metric_group.metrics << {:type => 'ce_gauge',   :name => 'waiting',                :unit => 'Connections'}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'active_connections',     :unit => 'Connections', position: 0}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'connections_accepts',    :unit => 'Connections', position: 1}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'connections_handled',    :unit => 'Connections', position: 2}
+  metric_group.metrics << {:type => 'ce_counter', :name => 'connections_requested',  :unit => 'Connections', position: 3}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'reading',                :unit => 'Connections', position: 4}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'writing',                :unit => 'Connections', position: 5}
+  metric_group.metrics << {:type => 'ce_gauge',   :name => 'waiting',                :unit => 'Connections', position: 6}
   metric_group.save
   metric_group
 end
