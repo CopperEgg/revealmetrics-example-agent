@@ -6,7 +6,7 @@ require 'mysql2'
 end
 
 begin
-	if ARG[2].nil? || ARGV[2] == ''
+	if ARGV[2].nil? || ARGV[2] == ''
 	  client = Mysql2::Client.new(host: ARGV[0], username: ARGV[1])
 	else
 	  client = Mysql2::Client.new(host: ARGV[0], username: ARGV[1], password: ARGV[2])
