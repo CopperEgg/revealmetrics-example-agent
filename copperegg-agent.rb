@@ -3,6 +3,11 @@
 # Copyright 2012 IDERA.  All rights reserved.
 #
 
+base_path = File.expand_path(File.dirname(__FILE__))
+ENV['BUNDLE_GEMFILE'] = "#{base_path}/Gemfile"
+
+##################################################
+
 require 'rubygems'
 require 'getoptlong'
 require 'copperegg'
@@ -89,6 +94,7 @@ config_file = 'config.yml'
 @interrupted = false
 @worker_pids = []
 @services = []
+@tags_updated = {}
 
 # Options and examples:
 opts.each do |opt, arg|
@@ -244,6 +250,21 @@ def monitor_redis(redis_servers, group_name)
 
       puts "#{group_name} - #{label} - #{Time.now.to_i} - #{metrics.inspect}" if @verbose
       CopperEgg::MetricSample.save(group_name, label, Time.now.to_i, metrics)
+      begin
+        if rhost['tags']
+          unless @tags_updated[rhost['name']]
+            rhost['tags'].strip.split(' ').each do |tag|
+              tag = CopperEgg::Tag.new({ name: tag})
+              tag.objects = [rhost['name']]
+              tag.save
+            end
+            @tags_updated[rhost['name']] = true
+            log "Updated tags for object #{rhost['name']}"
+          end
+        end
+      rescue
+        log "Error in updating tags for object #{rhost['name']}"
+      end
     end
     interruptible_sleep @freq
   end
@@ -397,6 +418,21 @@ def monitor_mysql(mysql_servers, group_name)
 
       puts "#{group_name} - #{mhost['name']} - #{Time.now.to_i} - #{metrics.inspect}" if @verbose
       CopperEgg::MetricSample.save(group_name, mhost['name'], Time.now.to_i, metrics)
+      begin
+        if mhost['tags']
+          unless @tags_updated[mhost['name']]
+            mhost['tags'].strip.split(' ').each do |tag|
+              tag = CopperEgg::Tag.new({ name: tag})
+              tag.objects = [mhost['name']]
+              tag.save
+            end
+            @tags_updated[mhost['name']] = true
+            log "Updated tags for object #{mhost['name']}"
+          end
+        end
+      rescue
+        log "Error in updating tags for object #{mhost['name']}"
+      end
     end
     interruptible_sleep @freq
   end
@@ -563,6 +599,21 @@ def monitor_apache(apache_servers, group_name)
 
       puts "#{group_name} - #{ahost['name']} - #{Time.now.to_i} - #{metrics.inspect}" if @verbose
       CopperEgg::MetricSample.save(group_name, ahost['name'], Time.now.to_i, metrics)
+      begin
+        if ahost['tags']
+          unless @tags_updated[ahost['name']]
+            ahost['tags'].strip.split(' ').each do |tag|
+              tag = CopperEgg::Tag.new({ name: tag})
+              tag.objects = [ahost['name']]
+              tag.save
+            end
+            @tags_updated[ahost['name']] = true
+            log "Updated tags for object #{ahost['name']}"
+          end
+        end
+      rescue
+        log "Error in updating tags for object #{ahost['name']}"
+      end
     end
     interruptible_sleep @freq
   end
@@ -663,6 +714,21 @@ def monitor_nginx(nginx_servers, group_name)
 
       puts "#{group_name} - #{nhost['name']} - #{Time.now.to_i} - #{metrics.inspect}" if @verbose
       CopperEgg::MetricSample.save(group_name, nhost['name'], Time.now.to_i, metrics)
+      begin
+        if nhost['tags']
+          unless @tags_updated[nhost['name']]
+            nhost['tags'].strip.split(' ').each do |tag|
+              tag = CopperEgg::Tag.new({ name: tag})
+              tag.objects = [nhost['name']]
+              tag.save
+            end
+            @tags_updated[nhost['name']] = true
+            log "Updated tags for object #{nhost['name']}"
+          end
+        end
+      rescue
+        log "Error in updating tags for object #{nhost['name']}"
+      end
     end
     interruptible_sleep @freq
   end

@@ -1,6 +1,6 @@
 source 'http://rubygems.org'
 
-gem 'copperegg', '0.6.4'
+gem 'copperegg', '0.6.5'
 gem 'json_pure', '~> 1.7.6'
 
 group :redis do
